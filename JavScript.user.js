@@ -717,7 +717,7 @@
         .x-ellipsis {
             overflow: hidden;
             text-overflow: ellipsis;
-            display: -webkit-box;
+            display: -webkit-box !important;
             -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
         }
@@ -815,7 +815,7 @@
 		// L_MTL
 		listMovieTitleLine = () => {
 			const num = this.L_MTL ?? 0;
-			GM_addStyle(`.x-ellipsis { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
+			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
 		};
 		// L_MIT
 		listMovieImgType = (node, regex, tokenMap) => {
@@ -985,9 +985,6 @@
         .sample-box > * {
             background: unset !important;
         }
-        .movie-box > * {
-            text-align: left !important;
-        }
         .movie-box > *:nth-child(2),
         .avatar-box > *:nth-child(2),
         .sample-box > *:nth-child(2) {
@@ -995,16 +992,6 @@
             border: none !important;
             line-height: 22px !important;
             height: auto !important;
-        }
-        .movie-box .title + div {
-            height: 22px;
-            margin: 4px 0;
-        }
-        .avatar-box .pb10:last-child {
-            padding-bottom: 0 !important;
-        }
-        .avatar-box p {
-            margin: 0 0 6px !important;
         }
         `;
 		dmBoxStyle = `
@@ -1057,6 +1044,31 @@
 				ul.pagination {
 				    margin-bottom: 40px;
 				}
+                .movie-box .x-title + div {
+                    height: 22px;
+                    margin: 4px 0;
+                }
+                .avatar-box .pb10 {
+                    padding: 0 !important;
+                }
+                .avatar-box .pb10:not(:last-child) {
+                    margin-bottom: 4px !important;
+                }
+                .avatar-box p {
+                    margin: 0 0 6px !important;
+                }
+                .mleft {
+                    display: flex !important;
+                    align-items: center;
+                }
+                .mleft > div {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                .mleft .btn-xs {
+                    margin: 0 5px 0 0 !important;
+                }
                 `;
 				const dmStyle = `
                 .pagination > li > a {
@@ -1113,6 +1125,7 @@
 					item.setAttribute("class", "item");
 					this._listMovieImgType(item);
 					this.modifyMovieBox(item);
+					this.modifyAvatarBox(item);
 				}
 				return items;
 			},
@@ -1123,6 +1136,21 @@
 				const tokenMap = { "/thumb/": "/cover/", "/thumbs/": "/cover/", ".jpg": "_b.jpg" };
 				this.listMovieImgType(item, regex, tokenMap);
 			},
+			modifyAvatarBox(node) {
+				const items = node.querySelectorAll(".avatar-box");
+				for (const item of items) {
+					const span = item.querySelector("span");
+					if (span.classList.contains("mleft")) {
+						const title = span.firstChild;
+						const titleText = title.nodeValue;
+						const _title = DOC.create("div", { title: titleText }, titleText);
+						title.parentElement.replaceChild(_title, title);
+						span.insertAdjacentElement("afterbegin", span.querySelector("button"));
+						continue;
+					}
+					span.classList.add("x-ellipsis");
+				}
+			},
 		};
 		modifyMovieBox = (node = DOC) => {
 			const items = node.querySelectorAll(".movie-box");
@@ -1131,7 +1159,7 @@
 				info.innerHTML = info.innerHTML.replace(/<br>/g, "");
 				const oldTitle = info.firstChild;
 				const titleText = oldTitle.textContent.trim();
-				const newTitle = DOC.create("div", { class: "title x-ellipsis", title: titleText }, titleText);
+				const newTitle = DOC.create("div", { class: "x-ellipsis x-title", title: titleText }, titleText);
 				info.replaceChild(newTitle, oldTitle);
 			}
 		};
@@ -1373,6 +1401,9 @@
 				    word-spacing: 0 !important;
 				    vertical-align: top !important;
 				}
+                .movie-box > * {
+                    text-align: left !important;
+                }
                 #magneturlpost + .movie {
                     padding: 10px !important;
                     margin-top: 20px !important;
@@ -1460,7 +1491,7 @@
 				});
 				tableObs.observe(DOC.querySelector("#movie-loading"), { attributes: true, attributeFilter: ["style"] });
 
-				// modify movie box
+				// modify box
 				this.modifyMovieBox();
 			},
 			getParams() {
