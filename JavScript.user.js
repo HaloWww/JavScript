@@ -721,6 +721,11 @@
             -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
         }
+        .x-line {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .x-matched {
             font-weight: bold;
             color: var(--x-blue);
@@ -838,19 +843,36 @@
 			container.classList.add("x-in");
 
 			if (!this.L_SCROLL) return;
-			const infScroll = new InfiniteScroll(container, { path, outlayer: msnry, history: false });
+
+			let nextURL;
+			const updateNextURL = (node = DOC) => {
+				nextURL = node.querySelector(path)?.href;
+			};
+			updateNextURL();
+			const infScroll = new InfiniteScroll(container, {
+				path: () => nextURL,
+				checkLastPage: path,
+				outlayer: msnry,
+				history: false,
+			});
+			infScroll?.on("request", async (_, fetchPromise) => {
+				const { body } = await fetchPromise.then();
+				if (body) updateNextURL(body);
+			});
 
 			const status = DOC.create("div", { id: "x-status" });
 			container.insertAdjacentElement("afterend", status);
 			let textContent = "加载中...";
+			const noMore = "没有更多了";
 			try {
-				infScroll.getPath();
-			} catch (error) {
-				textContent = "没有更多了";
+				const path = infScroll.getPath() ?? "";
+				if (!path) textContent = noMore;
+			} catch (err) {
+				textContent = noMore;
 			}
 			status.textContent = textContent;
 			infScroll?.once("last", () => {
-				status.textContent = "没有更多了";
+				status.textContent = noMore;
 			});
 
 			return infScroll;
@@ -1031,6 +1053,9 @@
 				    background: none !important;
 				    box-shadow: none !important;
 				}
+                .search-header .nav-tabs {
+                    display: none !important;
+                }
 				.alert-common {
 				    margin: 20px 20px 0 20px !important;
 				}
@@ -1060,11 +1085,6 @@
                 .mleft {
                     display: flex !important;
                     align-items: center;
-                }
-                .mleft > div {
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
                 }
                 .mleft .btn-xs {
                     margin: 0 5px 0 0 !important;
@@ -1113,6 +1133,7 @@
 				if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
+					if (!body) return;
 					const items = this.modifyListItem(body);
 					infScroll.appendItems(items);
 					infScroll.options.outlayer.appended(items);
@@ -1124,8 +1145,8 @@
 					item.removeAttribute("style");
 					item.setAttribute("class", "item");
 					this._listMovieImgType(item);
-					this.modifyMovieBox(item);
 					this.modifyAvatarBox(item);
+					this.modifyMovieBox(item);
 				}
 				return items;
 			},
@@ -1143,7 +1164,7 @@
 					if (span.classList.contains("mleft")) {
 						const title = span.firstChild;
 						const titleText = title.nodeValue;
-						const _title = DOC.create("div", { title: titleText }, titleText);
+						const _title = DOC.create("div", { title: titleText, class: "x-line" }, titleText);
 						title.parentElement.replaceChild(_title, title);
 						span.insertAdjacentElement("afterbegin", span.querySelector("button"));
 						continue;
@@ -1441,12 +1462,9 @@
                 .x-contain {
                     object-fit: contain;
                 }
-                .x-wrap {
+                .x-name {
 				    width: 380px;
 				    max-width: 380px;
-				    white-space: nowrap;
-				    text-overflow: ellipsis;
-				    overflow: hidden;
 				}
                 `;
 				const dmStyle = `
@@ -1480,7 +1498,7 @@
 				// movie  methods
 				const params = this.getParams();
 				if (params) {
-					console.log(params);
+					// console.log(params);
 					this._movieTitle(params);
 				}
 
@@ -1549,7 +1567,7 @@
 						(acc, { name, link, zh, size, date, from }) => `
                         ${acc}
                         <tr>
-                            <th scope="row" class="x-wrap">
+                            <th scope="row" class="x-name x-line">
                                 <a href="${link}" title="${name}">${name}</a>
                             </th>
                             <td>
