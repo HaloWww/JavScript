@@ -12,7 +12,7 @@
 // @resource        info https://z3.ax1x.com/2021/10/15/53g2TK.png
 // @resource        success https://z3.ax1x.com/2021/10/15/53gqTf.png
 // @resource        play https://s4.ax1x.com/2022/01/12/7nYuKe.png
-// @resource        loading https://via.placeholder.com/824x40
+// @resource        loading https://s1.ax1x.com/2022/03/21/qnIOqe.gif
 // @connect         *
 // @run-at          document-start
 // @grant           GM_registerMenuCommand
@@ -125,7 +125,7 @@
 	};
 	const addCopyTarget = (selectors, attr = {}) => {
 		const node = DOC.querySelector(selectors);
-		const _attr = { "data-copy": node.textContent.trim(), class: "x-ml-10", href: "javascript:void(0);" };
+		const _attr = { "data-copy": node.textContent.trim(), class: "x-ml", href: "javascript:void(0);" };
 		const target = DOC.create("a", { ..._attr, ...attr }, "复制");
 		target.addEventListener("click", handleCopyTxt);
 		node.appendChild(target);
@@ -142,6 +142,25 @@
 			target.textContent = original;
 			clearTimeout(timer);
 		}, 400);
+	};
+	const transToByte = sizeStr => {
+		const sizer = [
+			{ unit: /byte/gi, transform: size => size },
+			{ unit: /kb/gi, transform: size => size * Math.pow(1000, 1) },
+			{ unit: /mb/gi, transform: size => size * Math.pow(1000, 2) },
+			{ unit: /gb/gi, transform: size => size * Math.pow(1000, 3) },
+			{ unit: /kib/gi, transform: size => size * Math.pow(1024, 1) },
+			{ unit: /mib/gi, transform: size => size * Math.pow(1024, 2) },
+			{ unit: /gib/gi, transform: size => size * Math.pow(1024, 3) },
+		];
+		const size = sizeStr.replace(/[a-zA-Z\s]/g, "");
+		if (size <= 0) return 0;
+		return (
+			sizer
+				.find(({ unit }) => unit.test(sizeStr))
+				?.transform(size)
+				?.toFixed(2) ?? 0
+		);
 	};
 
 	class Store {
@@ -188,7 +207,7 @@
 			);
 			return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
 		}
-		static async translate(sentence) {
+		static async movieTitle(sentence) {
 			const st = encodeURIComponent(sentence.trim());
 			const data = {
 				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1642125176704,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
@@ -200,6 +219,88 @@
 				{ responseType: "" }
 			);
 			return res?.querySelector("#tw-answ-target-text").textContent ?? "";
+		}
+		static async movieVideo(code, studio) {
+			code = code.toLowerCase();
+			if (studio) {
+				const matchStudios = [
+					{
+						name: "東京熱",
+						match: "https://my.cdn.tokyo-hot.com/media/samples/%s.mp4",
+					},
+					{
+						name: "カリビアンコム",
+						match: "https://smovie.caribbeancom.com/sample/movies/%s/1080p.mp4",
+					},
+					{
+						name: "一本道",
+						match: "http://smovie.1pondo.tv/sample/movies/%s/1080p.mp4",
+					},
+					{
+						name: "HEYZO",
+						trans: code => code.replace(/HEYZO\-/gi, ""),
+						match: "https://www.heyzo.com/contents/3000/%s/heyzo_hd_%s_sample.mp4",
+					},
+				];
+				const matched = matchStudios.find(({ name }) => name === studio);
+				if (matched) return matched.match.replace(/%s/g, matched.trans ? matched.trans(code) : code);
+			}
+			const [r18, xrmoo] = await Promise.all([
+				request(`https://www.r18.com/common/search/searchword=${code}/`),
+				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
+			]);
+			return (
+				r18?.querySelector("a.js-view-sample")?.getAttribute("data-video-high") ||
+				xrmoo
+					?.querySelector(".card .card-footer a.viewVideo")
+					?.getAttribute("data-link")
+					.replace("_sm_w", "_dmb_w") ||
+				""
+			);
+		}
+		static async movieImg(code, date) {
+			code = code.toUpperCase();
+
+			const blogJavUrl = `https://blogjav.net/?s=${code}`;
+			const [blogJav, javStore] = await Promise.all([
+				request(blogJavUrl, {}, "GET", { headers: { referer: blogJavUrl } }),
+				request(`https://javstore.net/search/${code}.html`),
+			]);
+
+			date = date.split("-");
+			let bkRes = `https://img.japanese-bukkake.net/${date[0]}/${date[1]}/${code}_s.jpg`;
+			const [bjRes, jsRes, bukkake] = await Promise.all([
+				request(blogJav?.querySelector("#main article .entry-title a")?.href),
+				request(javStore?.querySelector("#content_news li a")?.href),
+				request(bkRes, {}, "GET", { responseType: "" }),
+			]);
+			if (!bukkake) bkRes = "";
+
+			return (
+				bjRes
+					?.querySelector("#page .entry-content a img")
+					?.getAttribute("data-lazy-src")
+					.replace("//t", "//img")
+					.replace("thumbs", "images") ||
+				jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") ||
+				bkRes ||
+				""
+			);
+		}
+		static async movieStar(code) {
+			code = code.toUpperCase();
+			const site = "https://javdb.com";
+			let res = await request(`${site}/search?q=${code}`);
+			const href = res?.querySelector("#videos .grid-item a").getAttribute("href");
+			if (!href) return;
+			res = await request(`${site}${href}`);
+			res = res?.querySelectorAll(".panel-block");
+			if (!res?.length) return;
+			res = res[res.length - 3]?.querySelector(".value").textContent.trim();
+			return res
+				.split(/\n/)
+				.filter(item => item.indexOf("♀") !== -1)
+				.map(item => item.replace("♀", "").trim());
 		}
 	}
 	class Common {
@@ -226,6 +327,7 @@
 				"M_IMG",
 				"M_STAR",
 				"M_PLAYER",
+				"M_SORT",
 				"M_MAGNET",
 				"D_MATCH",
 				"D_OFFLINE",
@@ -314,6 +416,13 @@
 					key: "M_PLAYER",
 					type: "switch",
 					info: "获取自 Netflav, BestJavPorn, JavHHH, Avgle",
+					defaultVal: true,
+				},
+				{
+					name: "磁力排序",
+					key: "M_SORT",
+					type: "switch",
+					info: "综合排序，字幕 ＞ 大小 ＞ 日期",
 					defaultVal: true,
 				},
 				{
@@ -648,7 +757,6 @@
 
             --x-thumb-w: 180px;
             --x-cover-w: 290px;
-            --x-cover-h: 580px;
 
             --x-thumb-ratio: 334 / 473;
             --x-cover-ratio: 135 / 91;
@@ -704,9 +812,18 @@
         }
         `;
 		customStyle = `
+        #x-status {
+            margin-bottom: 20px;
+            color: var(--x-sub-ftc);
+            text-align: center;
+        }
         .x-in {
-            transition: opacity .2s linear;
+            transition: opacity .25s linear;
             opacity: 1 !important;
+        }
+        .x-out {
+            transition: opacity .25s linear;
+            opacity: 0 !important;
         }
         .x-cover {
             width: var(--x-cover-w) !important;
@@ -730,11 +847,20 @@
             font-weight: bold;
             color: var(--x-blue);
         }
-        .x-player {
+        .x-player,
+        .x-loading {
             position: relative;
             overflow: hidden;
+            display: block;
         }
-        .x-player::after {
+        .x-player {
+            cursor: pointer;
+        }
+        .x-loading {
+            cursor: default;
+        }
+        .x-player::after,
+        .x-loading::after {
             content: "";
             position: absolute;
             width: 100%;
@@ -742,22 +868,33 @@
             top: 0;
             left: 0;
             transition: all .25s ease-out;
-            opacity: .8;
-            background: url(${GM_getResourceURL("play")}) 50% no-repeat;
             background-color: rgba(0, 0, 0, .2);
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .x-player::after {
+            opacity: .8;
+            background-image: url(${GM_getResourceURL("play")});
             background-size: 40px;
         }
-        .x-player:hover::after {
+        .x-loading::after {
             opacity: 1;
+            background-image: url(${GM_getResourceURL("loading")});
+            background-size: 100px;
+        }
+        .x-player:hover::after,
+        .x-loading:hover::after {
+            opacity: 1;
+        }
+        .x-player:hover::after {
             background-color: rgba(0, 0, 0, 0);
         }
-        .x-player img {
-            filter: none !important;
+        .x-loading:hover::after {
+            background-color: rgba(0, 0, 0, .2);
         }
-        #x-status {
-            margin-bottom: 20px;
-            color: var(--x-sub-ftc);
-            text-align: center;
+        .x-player img,
+        .x-loading img {
+            filter: none !important;
         }
         `;
 		// G_DARK
@@ -823,12 +960,13 @@
 			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
 		};
 		// L_MIT
-		listMovieImgType = (node, regex, tokenMap) => {
+		listMovieImgType = (node, condition) => {
 			const img = node.querySelector("img");
 			if (!this.L_MIT || !img) return;
 			node.classList.add("x-cover");
 			img.setAttribute("loading", "lazy");
-			img.src = img.src.replace(regex, matchStr => tokenMap[matchStr]);
+			const { src = "" } = img;
+			img.src = condition.find(({ regex }) => regex.test(src))?.replace(src);
 		};
 		// L_SCROLL
 		listScroll = (container, itemSelector, path) => {
@@ -878,23 +1016,63 @@
 			return infScroll;
 		};
 		// M_TITLE
-		movieTitle = async ({ code, title }) => {
+		movieTitle = async ({ code, title }, start) => {
 			if (!this.M_TITLE) return;
+			start && start();
 			let transTitle = Store.getDetail(code)?.transTitle;
 			if (!transTitle) {
-				transTitle = await Apis.translate(title);
+				transTitle = await Apis.movieTitle(title);
 				if (transTitle) Store.upDetail(code, { transTitle });
 			}
 			return transTitle;
 		};
 		// M_VIDEO
-		movieVideo = () => {};
+		movieVideo = async ({ code, studio }, start) => {
+			if (!this.M_VIDEO) return;
+			start && start();
+			let video = Store.getDetail(code)?.video;
+			if (!video) {
+				video = await Apis.movieVideo(code, studio);
+				if (video) Store.upDetail(code, { video });
+			}
+			return video;
+		};
 		// M_IMG
-		movieImg = () => {};
+		movieImg = async ({ code, date }, start) => {
+			if (!this.M_IMG) return;
+			start && start();
+			let img = Store.getDetail(code)?.img;
+			if (!img) {
+				img = await Apis.movieImg(code, date);
+				if (img) Store.upDetail(code, { img });
+			}
+			return img;
+		};
 		// M_STAR
-		movieStar = () => {};
+		movieStar = async ({ code, star: hasStar }, start) => {
+			if (!this.M_STAR || hasStar) return;
+			start && start();
+			let star = Store.getDetail(code)?.star;
+			if (!star?.length) {
+				star = await Apis.movieStar(code);
+				if (star?.length) Store.upDetail(code, { star });
+			}
+			return star;
+		};
 		// M_PLAYER
 		moviePlayer = () => {};
+		// M_SORT
+		movieSort = magnets => {
+			if (!this.M_SORT || magnets.length <= 1) return magnets;
+			return magnets.sort((pre, next) => {
+				if (pre.zh === next.zh) {
+					if (pre.byte === next.byte) return next.date - pre.date;
+					return next.byte - pre.byte;
+				} else {
+					return pre.zh > next.zh ? -1 : 1;
+				}
+			});
+		};
 		// M_MAGNET
 		movieMagnet = () => {};
 		// D_MATCH
@@ -1038,6 +1216,18 @@
 		_globalClick = () => {
 			this.globalClick([".movie-box", ".avatar-box"]);
 		};
+		modifyMovieBox = (node = DOC) => {
+			const items = node.querySelectorAll(".movie-box");
+			for (const item of items) {
+				const info = item.querySelector(".photo-info span");
+				info.innerHTML = info.innerHTML.replace(/<\/?span.*>|<br>/g, "");
+				const title = info.firstChild;
+				const titleText = title.textContent.trim();
+				const _title = DOC.create("div", { title: titleText, class: "x-ellipsis x-title" }, titleText);
+				info.replaceChild(_title, title);
+			}
+		};
+		// modules
 		waterfall = {
 			docStart() {
 				const style = `
@@ -1057,7 +1247,7 @@
                     display: none !important;
                 }
 				.alert-common {
-				    margin: 20px 20px 0 20px !important;
+				    margin: 20px 20px 0 !important;
 				}
 				.alert-page {
 				    margin: 20px !important;
@@ -1087,7 +1277,7 @@
                     align-items: center;
                 }
                 .mleft .btn-xs {
-                    margin: 0 5px 0 0 !important;
+                    margin: 0 6px 0 0 !important;
                 }
                 `;
 				const dmStyle = `
@@ -1153,36 +1343,33 @@
 			_listMovieImgType(node) {
 				const item = node.querySelector(".movie-box");
 				if (!item) return;
-				const regex = /\/thumb(s)?\/|\.jpg/g;
-				const tokenMap = { "/thumb/": "/cover/", "/thumbs/": "/cover/", ".jpg": "_b.jpg" };
-				this.listMovieImgType(item, regex, tokenMap);
+				const condition = [
+					{
+						regex: /\/thumb(s)?\//gi,
+						replace: val => val.replace(/\/thumb(s)?\//gi, "/cover/").replace(/\.jpg/gi, "_b.jpg"),
+					},
+					{
+						regex: /pics\.dmm\.co\.jp/gi,
+						replace: val => val.replace("ps.jpg", "pl.jpg"),
+					},
+				];
+				this.listMovieImgType(item, condition);
 			},
-			modifyAvatarBox(node) {
+			modifyAvatarBox(node = DOC) {
 				const items = node.querySelectorAll(".avatar-box");
 				for (const item of items) {
 					const span = item.querySelector("span");
 					if (span.classList.contains("mleft")) {
 						const title = span.firstChild;
-						const titleText = title.nodeValue;
+						const titleText = title.textContent.trim();
 						const _title = DOC.create("div", { title: titleText, class: "x-line" }, titleText);
 						title.parentElement.replaceChild(_title, title);
 						span.insertAdjacentElement("afterbegin", span.querySelector("button"));
 						continue;
 					}
-					span.classList.add("x-ellipsis");
+					span.classList.add("x-line");
 				}
 			},
-		};
-		modifyMovieBox = (node = DOC) => {
-			const items = node.querySelectorAll(".movie-box");
-			for (const item of items) {
-				const info = item.querySelector(".photo-info span");
-				info.innerHTML = info.innerHTML.replace(/<br>/g, "");
-				const oldTitle = info.firstChild;
-				const titleText = oldTitle.textContent.trim();
-				const newTitle = DOC.create("div", { class: "x-ellipsis x-title", title: titleText }, titleText);
-				info.replaceChild(newTitle, oldTitle);
-			}
 		};
 		genre = {
 			docStart() {
@@ -1209,6 +1396,9 @@
 				    margin: 0 !important;
 				    vertical-align: middle !important;
 				}
+                .x-last-box {
+                    margin-bottom: 70px !important;
+                }
                 button.btn.btn-danger.btn-block.btn-genre {
 				    position: fixed !important;
 				    bottom: 0 !important;
@@ -1229,7 +1419,7 @@
 				this._globalSearch();
 				if (!DOC.querySelector("button.btn.btn-danger.btn-block.btn-genre")) return;
 				const box = DOC.querySelectorAll(".genre-box");
-				box[box.length - 1].setAttribute("style", "margin-bottom:70px !important");
+				box[box.length - 1].classList.add("x-last-box");
 				DOC.querySelector(".container-fluid.pt10").addEventListener("click", ({ target }) => {
 					if (target.nodeName !== "A" || !target.classList.contains("text-center")) return;
 					const checkbox = target.querySelector("input");
@@ -1253,7 +1443,7 @@
                     right: 0 !important;
                     z-index: 999 !important;
                     border-color: #e7e7e7;
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,.15),0 1px 5px rgba(0,0,0,.075);
+                    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15), 0 1px 5px rgba(0, 0, 0, .075);
                 }
                 #search-input {
                     border-right: none !important;
@@ -1262,17 +1452,20 @@
                     margin-top: -3px !important;
                     margin-left: -4px !important;
                 }
-                #wp { margin-top: 55px !important; }
+                #wp {
+                    margin-top: 55px !important;
+                }
                 .biaoqicn_show a {
                     width: 20px !important;
                     height: 20px !important;
                     line-height: 20px !important;
+                    opacity: .7;
                 }
                 #online .bm_h {
                     border-bottom: none !important;
                 }
                 #online .bm_h .o img {
-                    margin-top: 50%;
+                    margin-top: 48%;
                 }
                 #moquu_top {
                     right: 20px;
@@ -1397,7 +1590,7 @@
                     position: relative;
                     overflow: hidden;
                     display: block;
-                    height: var(--x-cover-h);
+                    aspect-ratio: var(--x-cover-ratio);
                     opacity: 0;
                 }
                 .star-box img {
@@ -1435,10 +1628,10 @@
                 td, th {
 				    vertical-align: middle !important;
 				}
-                .x-ml-10 {
+                .x-ml {
                     margin-left: 10px;
                 }
-                .x-mr-10 {
+                .x-mr {
                     margin-right: 10px;
                 }
                 .x-grass-img {
@@ -1448,7 +1641,8 @@
                     min-height: 100%;
                 }
                 .x-grass-mask,
-                .x-contain {
+                .x-contain,
+                .x-video {
                     position: absolute;
                     width: 100% !important;
                     height: 100% !important;
@@ -1459,8 +1653,13 @@
                     background-color: rgba(0, 0, 0, .2);
                     backdrop-filter: blur(30px);
                 }
-                .x-contain {
+                .x-contain,
+                .x-video {
                     object-fit: contain;
+                }
+                .x-video {
+                    cursor: pointer;
+                    opacity: 0;
                 }
                 .x-name {
 				    width: 380px;
@@ -1498,8 +1697,12 @@
 				// movie  methods
 				const params = this.getParams();
 				if (params) {
-					// console.log(params);
 					this._movieTitle(params);
+					this._movieVideo(params);
+					this._movieImg(params);
+					this._movieStar(params);
+					this._moviePlayer(params);
+					this._movieMagnet(params);
 				}
 
 				// refactor table
@@ -1513,120 +1716,212 @@
 				this.modifyMovieBox();
 			},
 			getParams() {
-				const textContent = DOC.querySelector(".info").textContent;
+				const { textContent } = DOC.querySelector(".info");
 				return {
-					title: DOC.querySelector("h3").firstChild.nodeValue,
-					code: DOC.querySelector("span[style='color:#CC0000;']").firstChild.nodeValue,
-					date: DOC.querySelector(".info p:nth-child(2)").childNodes[1].nodeValue,
-					studio: textContent.match(/(?<=製作商:).+/g)?.pop(0),
+					title: DOC.querySelector("h3").firstChild.textContent,
+					code: DOC.querySelector("span[style='color:#CC0000;']").firstChild.textContent,
+					date: DOC.querySelector(".info p:nth-child(2)").childNodes[1].textContent.trim(),
+					studio: textContent.match(/(?<=製作商: ).+/g)?.pop(0),
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
 			},
 			modifyBigImage() {
 				const node = DOC.querySelector(".bigImage");
-				node.insertAdjacentHTML("beforeend", `<div class="x-grass-mask"></div>`);
 				const img = node.querySelector("img");
 				img.classList.add("x-grass-img");
-				node.insertAdjacentElement("beforeend", DOC.create("img", { src: img.src, class: "x-contain" }));
+				node.insertAdjacentHTML(
+					"beforeend",
+					`<div class="x-grass-mask"></div><img src="${img.src}" class="x-contain">`
+				);
 				node.classList.add("x-in");
 			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
 				const tableParent = table.parentElement;
 
-				const magnets = [];
+				let magnets = [];
 				for (const tr of table.querySelectorAll("tr")) {
 					const [link, size, date] = tr.querySelectorAll("td");
+
 					const _link = link?.querySelector("a");
-					if (!_link || !size || !date) continue;
+					const _size = size?.textContent.trim();
+					if (!_link || !_size || !date) continue;
+
 					magnets.push({
 						name: _link.textContent.trim(),
 						link: _link.href.split("&")[0],
 						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
-						size: size.textContent.trim(),
+						size: _size,
+						byte: transToByte(_size),
 						date: date.textContent.trim(),
 					});
 				}
+				magnets = this.movieSort(magnets);
 
-				let htmlStr = `
-                <table class="table table-striped table-hover table-bordered">
-                    <thead>
-                        <tr>
-                            <th scope="col">磁力名称</th>
-                            <th scope="col">档案大小</th>
-                            <th scope="col" class="text-center">分享日期</th>
-                            <th scope="col" class="text-center">来源</th>
-                            <th scope="col" class="text-center">字幕</th>
-                            <th scope="col">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                `;
-				if (magnets.length) {
-					htmlStr += magnets.reduce(
-						(acc, { name, link, zh, size, date, from }) => `
-                        ${acc}
-                        <tr>
-                            <th scope="row" class="x-name x-line">
-                                <a href="${link}" title="${name}">${name}</a>
-                            </th>
-                            <td>
-                                ${size}
-                            </td>
-                            <td class="text-center">
-                                ${date}
-                            </td>
-                            <td class="text-center">
-                                <code>${from ?? Matched.domain}</code>
-                            </td>
-                            <td class="text-center">
-                                <span 
-                                    class="glyphicon ${
-										zh ? "glyphicon-ok-circle text-success" : "glyphicon-remove-circle text-danger"
-									}"
-                                >
-                                </span>
-                            </td>
-                            <td>
-                                <a
-                                    href="javascript:void(0);"
-                                    data-copy="${link}"
-                                    class="x-mr-10"
-                                    title="复制磁力链接"
-                                >
-                                    复制链接
-                                </a>
-                                <a
-                                    href="javascript:void(0);"
-                                    data-magnet="${link}"
-                                    class="text-success"
-                                    title="仅添加离线任务"
-                                >
-                                    离线下载
-                                </a>
-                            </td>
-                        </tr>
-                        `,
-						""
-					);
-				} else {
-					htmlStr += `<tr><th scope="row" colspan="6" class="text-center text-muted">暂无数据</th></tr>`;
-				}
-				htmlStr += `
+				tableParent.innerHTML = `
+				<table class="table table-striped table-hover table-bordered">
+				    <thead>
+				        <tr>
+				            <th scope="col">磁力名称</th>
+				            <th scope="col">档案大小</th>
+				            <th scope="col" class="text-center">分享日期</th>
+				            <th scope="col" class="text-center">来源</th>
+				            <th scope="col" class="text-center">字幕</th>
+				            <th scope="col">操作</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+                    ${
+						this.createMagnetHtml(magnets) ??
+						`<tr><th scope="row" colspan="6" class="text-center text-muted">暂无数据</th></tr>`
+					}
                     </tbody>
-                    <tfoot>
-                        <tr>
-                            <th scope="row" colspan="5" class="text-right">总数</th>
-                            <td>${magnets.length}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                `;
-				tableParent.innerHTML = htmlStr;
+				    <tfoot>
+				        <tr>
+				            <th scope="row" colspan="5" class="text-right">总数</th>
+				            <td>${magnets.length}</td>
+				        </tr>
+				    </tfoot>
+				</table>
+				`;
 			},
+			createMagnetHtml(magnets) {
+				if (!magnets.length) return;
+				return magnets.reduce(
+					(acc, { name, link, size, date, from, zh }) => `
+                    ${acc}
+                    <tr>
+                        <th scope="row" class="x-name x-line" title="${name}">
+                            <a href="${link}">${name}</a>
+                        </th>
+                        <td>${size}</td>
+                        <td class="text-center">${date}</td>
+                        <td class="text-center"><code>${from ?? Matched.domain}</code></td>
+                        <td class="text-center">
+                            <span
+                                class="glyphicon ${
+									zh ? "glyphicon-ok-circle text-success" : "glyphicon-remove-circle text-danger"
+								}"
+                            >
+                            </span>
+                        </td>
+                        <td>
+                            <a
+                                href="javascript:void(0);"
+                                data-copy="${link}"
+                                class="x-mr"
+                                title="复制磁力链接"
+                            >
+                                复制链接
+                            </a>
+                            <a
+                                href="javascript:void(0);"
+                                data-magnet="${link}"
+                                class="text-success"
+                                title="仅添加离线任务"
+                            >
+                                离线下载
+                            </a>
+                        </td>
+                    </tr>
+                    `,
+					""
+				);
+			},
+			// methods
 			async _movieTitle(params) {
 				const transTitle = await this.movieTitle(params);
-				if (transTitle) DOC.querySelector("h3").setAttribute("title", transTitle);
+				if (!transTitle) return;
+				DOC.querySelector(".info").insertAdjacentHTML(
+					"afterbegin",
+					`<p><span class="header">机翻标题: </span>${transTitle}</p>`
+				);
+			},
+			async _movieVideo(params) {
+				const start = () => {
+					const player = DOC.create("div", { class: "x-player x-loading" }, DOC.querySelector(".bigImage"));
+					DOC.querySelector(".screencap").insertAdjacentElement("afterbegin", player);
+				};
+
+				const video = await this.movieVideo(params, start);
+				const player = DOC.querySelector(".x-player");
+
+				if (!video) {
+					if (player) {
+						player.removeAttribute("class");
+						player.setAttribute("title", "暂无预览视频");
+					}
+					return;
+				}
+
+				player.classList.remove("x-loading");
+				player.setAttribute("title", "查看预览视频");
+
+				const videoNode = DOC.create("video", { controls: "controls", src: video, class: "x-video" });
+				videoNode.currentTime = 3;
+				videoNode.preload = "auto";
+				videoNode.muted = true;
+				videoNode.addEventListener("click", e => {
+					e.preventDefault();
+					e.stopPropagation();
+					const { target: videoTarget } = e;
+					videoTarget.paused ? videoTarget.play() : videoTarget.pause();
+				});
+				const bigImage = DOC.querySelector(".bigImage");
+				bigImage.removeAttribute("href");
+				bigImage.insertAdjacentElement("beforeend", videoNode);
+
+				player.addEventListener(
+					"click",
+					() => {
+						player.removeAttribute("class");
+						player.removeAttribute("title");
+						player.querySelector(".x-contain").classList.add("x-out");
+						videoNode.classList.add("x-in");
+						videoNode.play();
+						videoNode.focus();
+					},
+					{ once: true }
+				);
+			},
+			async _movieImg(params) {
+				const start = () => {
+					console.log("movie img start");
+				};
+				const img = await this.movieImg(params, start);
+				if (!img) return;
+				console.log(img);
+			},
+			async _movieStar(params) {
+				const start = () => {
+					const starShow = DOC.querySelector(".star-show");
+					starShow.removeAttribute("class");
+					starShow.innerHTML = `<span class="header">演員:</span>`;
+					starShow.nextElementSibling.nextSibling.remove();
+					starShow.nextElementSibling.remove();
+					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
+				};
+
+				const star = await this.movieStar(params, start);
+				const starNode = DOC.querySelector(".x-star");
+
+				if (!star?.length) {
+					if (starNode) starNode.textContent = "暂无演员数据";
+					return;
+				}
+
+				starNode.innerHTML = star.reduce(
+					(acc, cur) => `${acc}<span class="genre"><a href="/search/${cur}">${cur}</a></span>`,
+					""
+				);
+			},
+			async _moviePlayer(params) {
+				const player = await this.moviePlayer(params);
+				if (!player?.length) return;
+			},
+			async _movieMagnet(params) {
+				const magnet = await this.movieMagnet(params);
+				if (!magnet?.length) return;
 			},
 		};
 	}
