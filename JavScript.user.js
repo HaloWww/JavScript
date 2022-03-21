@@ -222,6 +222,7 @@
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
+
 			if (studio) {
 				const matchStudios = [
 					{
@@ -245,12 +246,17 @@
 				const matched = matchStudios.find(({ name }) => name === studio);
 				if (matched) return matched.match.replace(/%s/g, matched.trans ? matched.trans(code) : code);
 			}
-			const [r18, xrmoo] = await Promise.all([
-				request(`https://www.r18.com/common/search/searchword=${code}/`),
+
+			let [r18, xrmoo] = await Promise.all([
+				request(`https://www.r18.com/common/search/order=match/searchword=${code}`),
 				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
 			]);
+
+			r18 = r18?.querySelector("a.js-view-sample");
 			return (
-				r18?.querySelector("a.js-view-sample")?.getAttribute("data-video-high") ||
+				r18?.getAttribute("data-video-high") ||
+				r18?.getAttribute("data-video-med") ||
+				r18?.getAttribute("data-video-low") ||
 				xrmoo
 					?.querySelector(".card .card-footer a.viewVideo")
 					?.getAttribute("data-link")
@@ -1093,7 +1099,7 @@
 			super();
 			return super.init();
 		}
-		// excludeMenu = ["M", "D"];
+		excludeMenu = ["D"];
 		routes = {
 			waterfall:
 				/^\/((uncensored|uncensored\/)?(page\/\d+)?$)|((uncensored\/)?((search|searchstar|actresses|genre|star|studio|label|series|director|member)+\/)|actresses(\/\d+)?)+/i,
