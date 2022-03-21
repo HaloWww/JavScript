@@ -89,13 +89,13 @@
 				method,
 				timeout: 20000,
 				onabort: () => {
-					console.log(`请求被中止`);
+					console.warn(`请求被中止`);
 				},
 				onerror: () => {
 					console.error(`请求错误，检查接口`);
 				},
 				ontimeout: () => {
-					console.error(`请求超时，检查网络`);
+					console.warn(`请求超时，检查网络`);
 				},
 				onload: ({ status, response }) => {
 					if (status === 404 || response?.errcode === 911) response = false;
