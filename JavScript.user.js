@@ -453,7 +453,7 @@
 					defaultVal: true,
 				},
 				{
-					name: "视频截图",
+					name: "预览大图",
 					key: "M_IMG",
 					type: "switch",
 					info: "获取自 JavStore, jpBukkake",
