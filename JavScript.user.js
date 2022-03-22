@@ -92,7 +92,7 @@
 					console.warn(`请求被中止`);
 				},
 				onerror: () => {
-					console.error(`请求错误，检查接口`);
+					console.warn(`请求错误，检查接口`);
 				},
 				ontimeout: () => {
 					console.warn(`请求超时，检查网络`);
@@ -142,8 +142,9 @@
 			target.textContent = original;
 			clearTimeout(timer);
 		}, 400);
+		return 1;
 	};
-	const transToByte = sizeStr => {
+	const transToBytes = sizeStr => {
 		const sizer = [
 			{ unit: /byte/gi, transform: size => size },
 			{ unit: /kb/gi, transform: size => size * Math.pow(1000, 1) },
@@ -264,23 +265,18 @@
 				""
 			);
 		}
-		static async movieImg(code, date) {
+		static async movieImg(code) {
 			code = code.toUpperCase();
 
-			const blogJavUrl = `https://blogjav.net/?s=${code}`;
 			const [blogJav, javStore] = await Promise.all([
-				request(blogJavUrl, {}, "GET", { headers: { referer: blogJavUrl } }),
+				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
 				request(`https://javstore.net/search/${code}.html`),
 			]);
 
-			date = date.split("-");
-			let bkRes = `https://img.japanese-bukkake.net/${date[0]}/${date[1]}/${code}_s.jpg`;
-			const [bjRes, jsRes, bukkake] = await Promise.all([
-				request(blogJav?.querySelector("#main article .entry-title a")?.href),
+			const [bjRes, jsRes] = await Promise.all([
+				request(blogJav?.querySelector("#rso .g .yuRUbf a")?.href),
 				request(javStore?.querySelector("#content_news li a")?.href),
-				request(bkRes, {}, "GET", { responseType: "" }),
 			]);
-			if (!bukkake) bkRes = "";
 
 			return (
 				bjRes
@@ -289,7 +285,6 @@
 					.replace("//t", "//img")
 					.replace("thumbs", "images") ||
 				jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") ||
-				bkRes ||
 				""
 			);
 		}
@@ -307,6 +302,60 @@
 				.split(/\n/)
 				.filter(item => item.indexOf("♀") !== -1)
 				.map(item => item.replace("♀", "").trim());
+		}
+		static async movieMagnet(code) {
+			const matchList = [
+				{
+					site: "Sukebei",
+					host: "https://sukebei.nyaa.si/",
+					search: "?f=0&c=0_0&q=%s",
+					selectors: ".table-responsive table tbody tr",
+					filter: {
+						name: e => e?.querySelector("td:nth-child(2) a").textContent,
+						link: e => e?.querySelector("td:nth-child(3) a:last-child").href,
+						size: e => e?.querySelector("td:nth-child(4)").textContent,
+						date: e => e?.querySelector("td:nth-child(5)").textContent.split(" ")[0],
+						href: e => e?.querySelector("td:nth-child(2) a").getAttribute("href"),
+					},
+				},
+				{
+					site: "BTSOW",
+					host: "https://btsow.rest/",
+					search: "search/%s",
+					selectors: ".data-list .row:not(.hidden-xs)",
+					filter: {
+						name: e => e?.querySelector(".file").textContent,
+						link: e => `magnet:?xt=urn:btih:${e?.querySelector("a").href.split("/").pop()}`,
+						size: e => e?.querySelector(".size").textContent,
+						date: e => e?.querySelector(".date").textContent,
+						href: e => e?.querySelector("a").getAttribute("href"),
+					},
+				},
+			];
+			const matched = await Promise.all(
+				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
+			);
+			const magnets = [];
+			for (let index = 0; index < matchList.length; index++) {
+				let node = matched[index];
+				if (!node) continue;
+				const { selectors, site, filter, host } = matchList[index];
+				node = node?.querySelectorAll(selectors);
+				if (!node?.length) continue;
+				for (const item of node) {
+					const magnet = { from: site };
+					Object.keys(filter).forEach(key => {
+						magnet[key] = filter[key](item).trim();
+					});
+					magnet.bytes = transToBytes(magnet.size);
+					if (!("zh" in magnet)) magnet.zh = /中文/g.test(magnet.name);
+					magnet.link = magnet.link.split("&")[0];
+					const href = magnet?.href;
+					if (href && !href.includes("//")) magnet.href = `${host}${href.replace(/^\//, "")}`;
+					magnets.push(magnet);
+				}
+			}
+			return magnets;
 		}
 	}
 	class Common {
@@ -886,7 +935,7 @@
         .x-loading::after {
             opacity: 1;
             background-image: url(${GM_getResourceURL("loading")});
-            background-size: 100px;
+            background-size: 80px;
         }
         .x-player:hover::after,
         .x-loading:hover::after {
@@ -1044,12 +1093,12 @@
 			return video;
 		};
 		// M_IMG
-		movieImg = async ({ code, date }, start) => {
+		movieImg = async ({ code }, start) => {
 			if (!this.M_IMG) return;
 			start && start();
 			let img = Store.getDetail(code)?.img;
 			if (!img) {
-				img = await Apis.movieImg(code, date);
+				img = await Apis.movieImg(code);
 				if (img) Store.upDetail(code, { img });
 			}
 			return img;
@@ -1068,19 +1117,31 @@
 		// M_PLAYER
 		moviePlayer = () => {};
 		// M_SORT
-		movieSort = magnets => {
-			if (!this.M_SORT || magnets.length <= 1) return magnets;
-			return magnets.sort((pre, next) => {
-				if (pre.zh === next.zh) {
-					if (pre.byte === next.byte) return next.date - pre.date;
-					return next.byte - pre.byte;
-				} else {
-					return pre.zh > next.zh ? -1 : 1;
-				}
-			});
+		movieSort = (magnets, start) => {
+			if (!this.M_SORT) return magnets;
+			start && start();
+			return magnets.length <= 1
+				? magnets
+				: magnets.sort((pre, next) => {
+						if (pre.zh === next.zh) {
+							if (pre.bytes === next.bytes) return next.date - pre.date;
+							return next.bytes - pre.bytes;
+						} else {
+							return pre.zh > next.zh ? -1 : 1;
+						}
+				  });
 		};
 		// M_MAGNET
-		movieMagnet = () => {};
+		movieMagnet = async ({ code }, start) => {
+			if (!this.M_MAGNET) return;
+			start && start();
+			let magnet = Store.getDetail(code)?.magnet;
+			if (!magnet?.length) {
+				magnet = await Apis.movieMagnet(code);
+				if (magnet?.length) Store.upDetail(code, { magnet });
+			}
+			return magnet;
+		};
 		// D_MATCH
 		driveMatch = () => {};
 		// D_OFFLINE
@@ -1567,6 +1628,15 @@
 			},
 		};
 		details = {
+			magnetProxy: new Proxy(
+				{ val: [] },
+				{
+					set(target, propKey, { val, cb }, receiver) {
+						cb && cb(val);
+						return Reflect.set(target, propKey, val, receiver);
+					},
+				}
+			),
 			docStart() {
 				const style = `
                 #mag-submit-show,
@@ -1667,9 +1737,59 @@
                     cursor: pointer;
                     opacity: 0;
                 }
-                .x-name {
-				    width: 380px;
-				    max-width: 380px;
+                .x-caption {
+                    display: flex;
+                    align-items: center;
+                }
+                .x-label {
+                    position: unset !important;
+                    top: unset !important;
+                    vertical-align: middle;
+                }
+                .x-img .x-label {
+                    line-height: inherit !important;
+                    cursor: pointer;
+                }
+                .x-table tr {
+                    table-layout: fixed;
+                    display: table;
+                    width: 100%;
+                }
+                .x-table tbody {
+                    display: block;
+                    max-height: calc(37px * 10 - 1px);
+                    overflow: overlay;
+                    table-layout: fixed;
+                }
+                .x-table thead th {
+                    border-left: none !important;
+                }
+                .x-table thead th:last-child {
+                    border-right: none !important;
+                }
+                .x-table tbody th,
+                .x-table tbody td {
+                    border-top: none !important;
+                    border-left: none !important;
+                }
+                .x-table tbody td:last-child {
+                    border-right: none !important;
+                }
+                .x-table tbody tr:last-child th,
+                .x-table tbody tr:last-child td {
+                    border-bottom: none !important;
+                }
+                .x-table tfoot th,
+                .x-table tfoot td {
+                    border-right: none !important;
+                    border-bottom: none !important;
+                }
+                .x-table tfoot th {
+                    border-left: none !important;
+                }
+                .x-lname {
+				    width: 33%;
+                    max-width: 580px;
 				}
                 `;
 				const dmStyle = `
@@ -1689,6 +1809,8 @@
 				);
 			},
 			contentLoaded() {
+				const params = this.getParams();
+
 				// global methods
 				this._globalSearch();
 				this._globalClick();
@@ -1701,32 +1823,34 @@
 				this.modifyBigImage();
 
 				// movie  methods
-				const params = this.getParams();
 				if (params) {
 					this._movieTitle(params);
 					this._movieVideo(params);
 					this._movieImg(params);
 					this._movieStar(params);
 					this._moviePlayer(params);
-					this._movieMagnet(params);
-				}
 
-				// refactor table
-				const tableObs = new MutationObserver((_, obs) => {
-					obs.disconnect();
-					this.refactorTable();
-				});
-				tableObs.observe(DOC.querySelector("#movie-loading"), { attributes: true, attributeFilter: ["style"] });
+					// refactor table
+					const tableObs = new MutationObserver((_, obs) => {
+						obs.disconnect();
+						this.refactorTable(params);
+					});
+					tableObs.observe(DOC.querySelector("#movie-loading"), {
+						attributes: true,
+						attributeFilter: ["style"],
+					});
+				}
 
 				// modify box
 				this.modifyMovieBox();
 			},
 			getParams() {
-				const { textContent } = DOC.querySelector(".info");
+				const info = DOC.querySelector(".info");
+				const { textContent } = info;
 				return {
-					title: DOC.querySelector("h3").firstChild.textContent,
-					code: DOC.querySelector("span[style='color:#CC0000;']").firstChild.textContent,
-					date: DOC.querySelector(".info p:nth-child(2)").childNodes[1].textContent.trim(),
+					title: DOC.querySelector("h3").textContent,
+					code: info.querySelector("span[style='color:#CC0000;']").textContent,
+					date: info.querySelector("p:nth-child(2)").childNodes[1].textContent.trim(),
 					studio: textContent.match(/(?<=製作商: ).+/g)?.pop(0),
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
@@ -1741,34 +1865,17 @@
 				);
 				node.classList.add("x-in");
 			},
-			refactorTable() {
+			refactorTable(params) {
 				const table = DOC.querySelector("#magnet-table");
-				const tableParent = table.parentElement;
 
-				let magnets = [];
-				for (const tr of table.querySelectorAll("tr")) {
-					const [link, size, date] = tr.querySelectorAll("td");
-
-					const _link = link?.querySelector("a");
-					const _size = size?.textContent.trim();
-					if (!_link || !_size || !date) continue;
-
-					magnets.push({
-						name: _link.textContent.trim(),
-						link: _link.href.split("&")[0],
-						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
-						size: _size,
-						byte: transToByte(_size),
-						date: date.textContent.trim(),
-					});
-				}
-				magnets = this.movieSort(magnets);
-
-				tableParent.innerHTML = `
-				<table class="table table-striped table-hover table-bordered">
+				table.parentElement.innerHTML = `
+				<table class="table table-striped table-hover table-bordered x-table">
+                    <caption>
+                        <div class="x-caption">重构的表格</div>
+                    </caption>
 				    <thead>
 				        <tr>
-				            <th scope="col">磁力名称</th>
+				            <th scope="col" class="x-lname">磁力名称</th>
 				            <th scope="col">档案大小</th>
 				            <th scope="col" class="text-center">分享日期</th>
 				            <th scope="col" class="text-center">来源</th>
@@ -1777,32 +1884,81 @@
 				        </tr>
 				    </thead>
 				    <tbody>
-                    ${
-						this.createMagnetHtml(magnets) ??
-						`<tr><th scope="row" colspan="6" class="text-center text-muted">暂无数据</th></tr>`
-					}
+                        <tr>
+                            <th scope="row" colspan="6" class="text-center text-muted">暂无数据</th>
+                        </tr>
                     </tbody>
 				    <tfoot>
 				        <tr>
-				            <th scope="row" colspan="5" class="text-right">总数</th>
-				            <td>${magnets.length}</td>
+                            <th scope="row" class="x-lname"></th>
+				            <th scope="row" colspan="4" class="text-right">总数</th>
+				            <td>0</td>
 				        </tr>
 				    </tfoot>
 				</table>
 				`;
+
+				const tbody = DOC.querySelector(".x-table tbody");
+				if (tbody) {
+					tbody.addEventListener("click", e => {
+						if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
+						console.log(e.target.dataset);
+					});
+				}
+
+				let magnets = [];
+				for (const tr of table.querySelectorAll("tr")) {
+					const [link, size, date] = tr.querySelectorAll("td");
+					const _link = link?.querySelector("a");
+					const _size = size?.textContent.trim();
+					if (!_link || !_size || !date) continue;
+					magnets.push({
+						name: _link.textContent.trim(),
+						link: _link.href.split("&")[0],
+						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
+						size: _size,
+						bytes: transToBytes(_size),
+						date: date.textContent.trim(),
+					});
+				}
+				this.magnetProxy.val = { val: magnets, cb: e => this.refactorTd(e) };
+				this._movieMagnet(params);
+			},
+			refactorTd(magnets) {
+				const table = DOC.querySelector(".x-table");
+				table.querySelector("tfoot td").textContent = magnets.length;
+
+				let sortStart = null;
+				if (!this.magnetProxy.val.length) {
+					sortStart = () => {
+						DOC.querySelector(".x-caption").insertAdjacentHTML(
+							"beforeend",
+							`<span class="label label-success x-label"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
+						);
+					};
+				}
+
+				magnets = this.movieSort(magnets, sortStart);
+				this.magnetProxy.val = { val: magnets };
+				magnets = this.createMagnetHtml(magnets);
+				if (magnets) table.querySelector("tbody").innerHTML = magnets;
 			},
 			createMagnetHtml(magnets) {
 				if (!magnets.length) return;
 				return magnets.reduce(
-					(acc, { name, link, size, date, from, zh }) => `
+					(acc, { name, link, size, date, from, href, zh }) => `
                     ${acc}
                     <tr>
-                        <th scope="row" class="x-name x-line" title="${name}">
+                        <th scope="row" class="x-lname x-line" title="${name}">
                             <a href="${link}">${name}</a>
                         </th>
                         <td>${size}</td>
                         <td class="text-center">${date}</td>
-                        <td class="text-center"><code>${from ?? Matched.domain}</code></td>
+                        <td class="text-center">
+                            <a${href ? ` href="${href}" target="_blank" title="查看详情"` : ""}>
+                                <code>${from ?? Matched.domain}</code>
+                            </a>
+                        </td>
                         <td class="text-center">
                             <span
                                 class="glyphicon ${
@@ -1818,7 +1974,7 @@
                                 class="x-mr"
                                 title="复制磁力链接"
                             >
-                                复制链接
+                                复制
                             </a>
                             <a
                                 href="javascript:void(0);"
@@ -1836,12 +1992,22 @@
 			},
 			// methods
 			async _movieTitle(params) {
-				const transTitle = await this.movieTitle(params);
-				if (!transTitle) return;
-				DOC.querySelector(".info").insertAdjacentHTML(
-					"afterbegin",
-					`<p><span class="header">机翻标题: </span>${transTitle}</p>`
-				);
+				const start = () => {
+					DOC.querySelector(".info").insertAdjacentHTML(
+						"afterbegin",
+						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
+					);
+				};
+
+				const transTitle = await this.movieTitle(params, start);
+				const transTitleNode = DOC.querySelector(".x-transTitle");
+
+				if (!transTitle) {
+					if (transTitleNode) transTitleNode.textContent = "查询失败";
+					return;
+				}
+
+				transTitleNode.textContent = transTitle;
 			},
 			async _movieVideo(params) {
 				const start = () => {
@@ -1892,16 +2058,46 @@
 			},
 			async _movieImg(params) {
 				const start = () => {
-					console.log("movie img start");
+					DOC.querySelector(".info").insertAdjacentHTML(
+						"afterbegin",
+						`<p><span class="header">预览大图: </span><span class="x-img">查询中...</span></p>`
+					);
 				};
+
 				const img = await this.movieImg(params, start);
-				if (!img) return;
-				console.log(img);
+				const imgNode = DOC.querySelector(".x-img");
+
+				if (!img) {
+					if (imgNode) imgNode.textContent = "暂无预览大图";
+					return;
+				}
+
+				imgNode.innerHTML = `<a href="${img}" target="_blank"><span class="label label-success x-label"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span> 点击查看</span></a>`;
+
+				// let waterfall = DOC.querySelector("#sample-waterfall");
+				// if (!waterfall) {
+				// 	DOC.querySelector("div.clearfix").insertAdjacentHTML(
+				// 		"beforebegin",
+				// 		`<h4>樣品圖像</h4><div id="sample-waterfall"></div>`
+				// 	);
+				// 	waterfall = DOC.querySelector("#sample-waterfall");
+				// }
+				// waterfall.insertAdjacentHTML(
+				// 	"afterbegin",
+				// 	`<a class="sample-box" href="${img}" target="_blank">
+				//         <div class="photo-frame">
+				//             <img src="${DOC.querySelector(".x-grass-img").src}" title="预览大图">
+				//         </div>
+				//     </a>`
+				// );
+
+				// imgNode.querySelector(".x-label").addEventListener("click", () => {
+				// 	waterfall.querySelector("a").click();
+				// });
 			},
 			async _movieStar(params) {
 				const start = () => {
 					const starShow = DOC.querySelector(".star-show");
-					starShow.removeAttribute("class");
 					starShow.innerHTML = `<span class="header">演員:</span>`;
 					starShow.nextElementSibling.nextSibling.remove();
 					starShow.nextElementSibling.remove();
@@ -1926,8 +2122,18 @@
 				if (!player?.length) return;
 			},
 			async _movieMagnet(params) {
-				const magnet = await this.movieMagnet(params);
+				const start = () => {
+					DOC.querySelector(".x-caption").insertAdjacentHTML(
+						"beforeend",
+						`<span class="label label-success x-label"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
+					);
+				};
+
+				let magnet = await this.movieMagnet(params, start);
 				if (!magnet?.length) return;
+
+				magnet = [...this.magnetProxy.val, ...magnet];
+				this.magnetProxy.val = { val: magnet, cb: e => this.refactorTd(e) };
 			},
 		};
 	}
