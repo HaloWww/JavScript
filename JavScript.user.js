@@ -1371,7 +1371,6 @@
 			modifyLayout() {
 				const waterfall = DOC.querySelector("#waterfall");
 				if (!waterfall) return;
-				const isStarDetail = /^\/star\/\w+/i.test(location.pathname);
 
 				const _waterfall = waterfall.cloneNode(true);
 				_waterfall.removeAttribute("style");
@@ -1379,6 +1378,7 @@
 				const items = this.modifyListItem(_waterfall);
 
 				const itemsLen = items?.length ?? 0;
+				const isStarDetail = /^\/star\/\w+/i.test(location.pathname);
 				if (itemsLen) {
 					_waterfall.innerHTML = "";
 					for (let index = 0; index < itemsLen; index++) {
@@ -1631,22 +1631,15 @@
 			},
 		};
 		details = {
-			magnetProxy: new Proxy(
-				{ val: [] },
-				{
-					set(target, propKey, { val, cb }, receiver) {
-						cb && cb(val);
-						return Reflect.set(target, propKey, val, receiver);
-					},
-				}
-			),
+			magnets: null,
 			docStart() {
 				const style = `
                 #mag-submit-show,
                 #mag-submit,
                 #magnet-table,
 				h4[style="position:relative"],
-				h4[style="position:relative"] + .row {
+				h4[style="position:relative"] + .row,
+                .info span.glyphicon-info-sign {
 				    display: none !important;
 				}
                 html {
@@ -1701,7 +1694,7 @@
                     padding: 10px !important;
                     margin-top: 20px !important;
                 }
-                #magneturlpost + .movie table {
+                .x-table {
                     margin: 0 !important;
                 }
                 td, th {
@@ -1720,8 +1713,7 @@
                     min-height: 100%;
                 }
                 .x-grass-mask,
-                .x-contain,
-                .x-video {
+                .x-contain {
                     position: absolute;
                     width: 100% !important;
                     height: 100% !important;
@@ -1729,11 +1721,9 @@
                     left: 0;
                 }
                 .x-grass-mask {
-                    background-color: rgba(0, 0, 0, .2);
-                    backdrop-filter: blur(30px);
+                    backdrop-filter: blur(50px);
                 }
-                .x-contain,
-                .x-video {
+                .x-contain {
                     object-fit: contain;
                 }
                 .x-video {
@@ -1744,14 +1734,8 @@
                     display: flex;
                     align-items: center;
                 }
-                .x-label {
+                .x-caption .label {
                     position: unset !important;
-                    top: unset !important;
-                    vertical-align: middle;
-                }
-                .x-img .x-label {
-                    line-height: inherit !important;
-                    cursor: pointer;
                 }
                 .x-table tr {
                     table-layout: fixed;
@@ -1812,39 +1796,28 @@
 				);
 			},
 			contentLoaded() {
-				const params = this.getParams();
-
-				// global methods
 				this._globalSearch();
 				this._globalClick();
 
-				// add copy target
+				const params = this.getParams();
+
 				addCopyTarget("h3", { title: "复制标题" });
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
 
-				// modify bigImage
-				this.modifyBigImage();
+				this._movieTitle(params);
+				this._movieStar(params);
+				this.modifyCover();
+				this._movieImg(params);
+				// this._movieVideo(params);
+				// this._moviePlayer(params);
 
-				// movie  methods
-				if (params) {
-					this._movieTitle(params);
-					this._movieVideo(params);
-					this._movieImg(params);
-					this._movieStar(params);
-					this._moviePlayer(params);
+				const tableObs = new MutationObserver((_, obs) => {
+					obs.disconnect();
+					this.refactorTable();
+					this._movieMagnet(params);
+				});
+				tableObs.observe(DOC.querySelector("#movie-loading"), { attributes: true, attributeFilter: ["style"] });
 
-					// refactor table
-					const tableObs = new MutationObserver((_, obs) => {
-						obs.disconnect();
-						this.refactorTable(params);
-					});
-					tableObs.observe(DOC.querySelector("#movie-loading"), {
-						attributes: true,
-						attributeFilter: ["style"],
-					});
-				}
-
-				// modify box
 				this.modifyMovieBox();
 			},
 			getParams() {
@@ -1858,7 +1831,38 @@
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
 			},
-			modifyBigImage() {
+			async _movieTitle(params) {
+				const start = () => {
+					DOC.querySelector(".info").insertAdjacentHTML(
+						"afterbegin",
+						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
+					);
+				};
+				const transTitle = await this.movieTitle(params, start);
+				const transTitleNode = DOC.querySelector(".x-transTitle");
+				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
+			},
+			async _movieStar(params) {
+				const start = () => {
+					const starShow = DOC.querySelector("p.star-show");
+					starShow.nextElementSibling.nextSibling.remove();
+					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
+				};
+
+				const star = await this.movieStar(params, start);
+				const starNode = DOC.querySelector(".x-star");
+
+				if (!star?.length) {
+					if (starNode) starNode.textContent = "暂无演员数据";
+					return;
+				}
+
+				starNode.innerHTML = star.reduce(
+					(acc, cur) => `${acc}<span class="genre"><label><a href="/search/${cur}">${cur}</a></label></span>`,
+					""
+				);
+			},
+			modifyCover() {
 				const node = DOC.querySelector(".bigImage");
 				const img = node.querySelector("img");
 				img.classList.add("x-grass-img");
@@ -1868,149 +1872,23 @@
 				);
 				node.classList.add("x-in");
 			},
-			refactorTable(params) {
-				const table = DOC.querySelector("#magnet-table");
-
-				table.parentElement.innerHTML = `
-				<table class="table table-striped table-hover table-bordered x-table">
-                    <caption>
-                        <div class="x-caption">重构的表格</div>
-                    </caption>
-				    <thead>
-				        <tr>
-				            <th scope="col" class="x-lname">磁力名称</th>
-				            <th scope="col">档案大小</th>
-				            <th scope="col" class="text-center">分享日期</th>
-				            <th scope="col" class="text-center">来源</th>
-				            <th scope="col" class="text-center">字幕</th>
-				            <th scope="col">操作</th>
-				        </tr>
-				    </thead>
-				    <tbody>
-                        <tr>
-                            <th scope="row" colspan="6" class="text-center text-muted">暂无数据</th>
-                        </tr>
-                    </tbody>
-				    <tfoot>
-				        <tr>
-                            <th scope="row" class="x-lname"></th>
-				            <th scope="row" colspan="4" class="text-right">总数</th>
-				            <td>0</td>
-				        </tr>
-				    </tfoot>
-				</table>
-				`;
-
-				const tbody = DOC.querySelector(".x-table tbody");
-				if (tbody) {
-					tbody.addEventListener("click", e => {
-						if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
-						console.log(e.target.dataset);
-					});
-				}
-
-				let magnets = [];
-				for (const tr of table.querySelectorAll("tr")) {
-					const [link, size, date] = tr.querySelectorAll("td");
-					const _link = link?.querySelector("a");
-					const _size = size?.textContent.trim();
-					if (!_link || !_size || !date) continue;
-					magnets.push({
-						name: _link.textContent.trim(),
-						link: _link.href.split("&")[0],
-						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
-						size: _size,
-						bytes: transToBytes(_size),
-						date: date.textContent.trim(),
-					});
-				}
-				this.magnetProxy.val = { val: magnets, cb: e => this.refactorTd(e) };
-				this._movieMagnet(params);
-			},
-			refactorTd(magnets) {
-				const table = DOC.querySelector(".x-table");
-				table.querySelector("tfoot td").textContent = magnets.length;
-
-				let sortStart = null;
-				if (!this.magnetProxy.val.length) {
-					sortStart = () => {
-						DOC.querySelector(".x-caption").insertAdjacentHTML(
-							"beforeend",
-							`<span class="label label-success x-label"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
-						);
-					};
-				}
-
-				magnets = this.movieSort(magnets, sortStart);
-				this.magnetProxy.val = { val: magnets };
-				magnets = this.createMagnetHtml(magnets);
-				if (magnets) table.querySelector("tbody").innerHTML = magnets;
-			},
-			createMagnetHtml(magnets) {
-				if (!magnets.length) return;
-				return magnets.reduce(
-					(acc, { name, link, size, date, from, href, zh }) => `
-                    ${acc}
-                    <tr>
-                        <th scope="row" class="x-lname x-line" title="${name}">
-                            <a href="${link}">${name}</a>
-                        </th>
-                        <td>${size}</td>
-                        <td class="text-center">${date}</td>
-                        <td class="text-center">
-                            <a${href ? ` href="${href}" target="_blank" title="查看详情"` : ""}>
-                                <code>${from ?? Matched.domain}</code>
-                            </a>
-                        </td>
-                        <td class="text-center">
-                            <span
-                                class="glyphicon ${
-									zh ? "glyphicon-ok-circle text-success" : "glyphicon-remove-circle text-danger"
-								}"
-                            >
-                            </span>
-                        </td>
-                        <td>
-                            <a
-                                href="javascript:void(0);"
-                                data-copy="${link}"
-                                class="x-mr"
-                                title="复制磁力链接"
-                            >
-                                复制
-                            </a>
-                            <a
-                                href="javascript:void(0);"
-                                data-magnet="${link}"
-                                class="text-success"
-                                title="仅添加离线任务"
-                            >
-                                离线下载
-                            </a>
-                        </td>
-                    </tr>
-                    `,
-					""
-				);
-			},
-			// methods
-			async _movieTitle(params) {
+			async _movieImg(params) {
 				const start = () => {
-					DOC.querySelector(".info").insertAdjacentHTML(
-						"afterbegin",
-						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
-					);
+					// DOC.querySelector(".info").insertAdjacentHTML(
+					// 	"afterbegin",
+					// 	`<p><span class="header">预览大图: </span><span class="x-img">查询中...</span></p>`
+					// );
 				};
 
-				const transTitle = await this.movieTitle(params, start);
-				const transTitleNode = DOC.querySelector(".x-transTitle");
+				const img = await this.movieImg(params, start);
+				// const imgNode = DOC.querySelector(".x-img");
 
-				if (!transTitle) {
-					if (transTitleNode) transTitleNode.textContent = "查询失败";
+				if (!img) {
+					// if (imgNode) imgNode.textContent = "暂无预览大图";
 					return;
 				}
 
-				transTitleNode.textContent = transTitle;
+				// imgNode.innerHTML = `<a href="${img}" target="_blank"><span class="label label-success"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span> 点击查看</span></a>`;
 			},
 			async _movieVideo(params) {
 				const start = () => {
@@ -2059,84 +1937,148 @@
 					{ once: true }
 				);
 			},
-			async _movieImg(params) {
-				const start = () => {
-					DOC.querySelector(".info").insertAdjacentHTML(
-						"afterbegin",
-						`<p><span class="header">预览大图: </span><span class="x-img">查询中...</span></p>`
-					);
-				};
-
-				const img = await this.movieImg(params, start);
-				const imgNode = DOC.querySelector(".x-img");
-
-				if (!img) {
-					if (imgNode) imgNode.textContent = "暂无预览大图";
-					return;
-				}
-
-				imgNode.innerHTML = `<a href="${img}" target="_blank"><span class="label label-success x-label"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span> 点击查看</span></a>`;
-
-				// let waterfall = DOC.querySelector("#sample-waterfall");
-				// if (!waterfall) {
-				// 	DOC.querySelector("div.clearfix").insertAdjacentHTML(
-				// 		"beforebegin",
-				// 		`<h4>樣品圖像</h4><div id="sample-waterfall"></div>`
-				// 	);
-				// 	waterfall = DOC.querySelector("#sample-waterfall");
-				// }
-				// waterfall.insertAdjacentHTML(
-				// 	"afterbegin",
-				// 	`<a class="sample-box" href="${img}" target="_blank">
-				//         <div class="photo-frame">
-				//             <img src="${DOC.querySelector(".x-grass-img").src}" title="预览大图">
-				//         </div>
-				//     </a>`
-				// );
-
-				// imgNode.querySelector(".x-label").addEventListener("click", () => {
-				// 	waterfall.querySelector("a").click();
-				// });
-			},
-			async _movieStar(params) {
-				const start = () => {
-					const starShow = DOC.querySelector(".star-show");
-					starShow.innerHTML = `<span class="header">演員:</span>`;
-					starShow.nextElementSibling.nextSibling.remove();
-					starShow.nextElementSibling.remove();
-					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
-				};
-
-				const star = await this.movieStar(params, start);
-				const starNode = DOC.querySelector(".x-star");
-
-				if (!star?.length) {
-					if (starNode) starNode.textContent = "暂无演员数据";
-					return;
-				}
-
-				starNode.innerHTML = star.reduce(
-					(acc, cur) => `${acc}<span class="genre"><a href="/search/${cur}">${cur}</a></span>`,
-					""
-				);
-			},
 			async _moviePlayer(params) {
 				const player = await this.moviePlayer(params);
 				if (!player?.length) return;
+			},
+			refactorTable() {
+				const table = DOC.querySelector("#magnet-table");
+
+				table.parentElement.innerHTML = `
+				<table class="table table-striped table-hover table-bordered x-table">
+                    <caption>
+                        <div class="x-caption">重构的表格</div>
+                    </caption>
+				    <thead>
+				        <tr>
+				            <th scope="col" class="x-lname">磁力名称</th>
+				            <th scope="col">档案大小</th>
+				            <th scope="col" class="text-center">分享日期</th>
+				            <th scope="col" class="text-center">来源</th>
+				            <th scope="col" class="text-center">字幕</th>
+				            <th scope="col">操作</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+                        <tr>
+                            <th scope="row" colspan="6" class="text-center text-muted">暂无数据</th>
+                        </tr>
+                    </tbody>
+				    <tfoot>
+				        <tr>
+                            <th scope="row" class="x-lname"></th>
+				            <th scope="row" colspan="4" class="text-right">总数</th>
+				            <td>0</td>
+				        </tr>
+				    </tfoot>
+				</table>
+				`;
+
+				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
+					if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
+					console.log(e.target.dataset);
+				});
+
+				let magnets = [];
+				for (const tr of table.querySelectorAll("tr")) {
+					const [link, size, date] = tr.querySelectorAll("td");
+					const _link = link?.querySelector("a");
+					const _size = size?.textContent.trim();
+					if (!_link || !_size || !date) continue;
+					magnets.push({
+						name: _link.textContent.trim(),
+						link: _link.href.split("&")[0],
+						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
+						size: _size,
+						bytes: transToBytes(_size),
+						date: date.textContent.trim(),
+					});
+				}
+
+				this.refactorTd(magnets);
 			},
 			async _movieMagnet(params) {
 				const start = () => {
 					DOC.querySelector(".x-caption").insertAdjacentHTML(
 						"beforeend",
-						`<span class="label label-success x-label"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
+						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
 					);
 				};
 
-				let magnet = await this.movieMagnet(params, start);
-				if (!magnet?.length) return;
+				let magnets = await this.movieMagnet(params, start);
+				if (!magnets?.length) return;
 
-				magnet = [...this.magnetProxy.val, ...magnet];
-				this.magnetProxy.val = { val: magnet, cb: e => this.refactorTd(e) };
+				this.refactorTd(magnets);
+			},
+			refactorTd(magnets) {
+				const table = DOC.querySelector(".x-table");
+				let sortStart = () => {
+					table
+						.querySelector(".x-caption")
+						.insertAdjacentHTML(
+							"beforeend",
+							`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
+						);
+				};
+
+				if (this.magnets) {
+					sortStart = null;
+					magnets = [...this.magnets, ...magnets];
+				}
+
+				magnets = this.movieSort(magnets, sortStart);
+				this.magnets = magnets;
+				table.querySelector("tfoot td").textContent = magnets.length;
+
+				magnets = this.createTd(magnets);
+				if (magnets) table.querySelector("tbody").innerHTML = magnets;
+			},
+			createTd(magnets) {
+				if (!magnets.length) return;
+				return magnets.reduce(
+					(acc, { name, link, size, date, from, href, zh }) => `
+                    ${acc}
+                    <tr>
+                        <th scope="row" class="x-lname x-line" title="${name}">
+                            <a href="${link}">${name}</a>
+                        </th>
+                        <td>${size}</td>
+                        <td class="text-center">${date}</td>
+                        <td class="text-center">
+                            <a${href ? ` href="${href}" target="_blank" title="查看详情"` : ""}>
+                                <code>${from ?? Matched.domain}</code>
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            <span
+                                class="glyphicon ${
+									zh ? "glyphicon-ok-circle text-success" : "glyphicon-remove-circle text-danger"
+								}"
+                            >
+                            </span>
+                        </td>
+                        <td>
+                            <a
+                                href="javascript:void(0);"
+                                data-copy="${link}"
+                                class="x-mr"
+                                title="复制磁力链接"
+                            >
+                                复制
+                            </a>
+                            <a
+                                href="javascript:void(0);"
+                                data-magnet="${link}"
+                                class="text-success"
+                                title="仅添加离线任务"
+                            >
+                                离线下载
+                            </a>
+                        </td>
+                    </tr>
+                    `,
+					""
+				);
 			},
 		};
 	}
