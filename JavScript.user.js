@@ -937,10 +937,6 @@
             background-image: url(${GM_getResourceURL("loading")});
             background-size: 80px;
         }
-        .x-player:hover::after,
-        .x-loading:hover::after {
-            opacity: 1;
-        }
         .x-player:hover::after {
             background-color: rgba(0, 0, 0, 0);
         }
@@ -1011,7 +1007,7 @@
 		};
 		// L_MTL
 		listMovieTitleLine = () => {
-			const num = this.L_MTL ?? 0;
+			const num = parseInt(this.L_MTL ?? 0, 10);
 			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
 		};
 		// L_MIT
@@ -1375,14 +1371,20 @@
 			modifyLayout() {
 				const waterfall = DOC.querySelector("#waterfall");
 				if (!waterfall) return;
+				const isStarDetail = /^\/star\/\w+/i.test(location.pathname);
 
 				const _waterfall = waterfall.cloneNode(true);
 				_waterfall.removeAttribute("style");
 				_waterfall.setAttribute("class", "x-show");
 				const items = this.modifyListItem(_waterfall);
-				if (items?.length) {
+
+				const itemsLen = items?.length ?? 0;
+				if (itemsLen) {
 					_waterfall.innerHTML = "";
-					items.forEach(item => _waterfall.appendChild(item));
+					for (let index = 0; index < itemsLen; index++) {
+						if (isStarDetail && !index) continue;
+						_waterfall.appendChild(items[index]);
+					}
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
@@ -1391,7 +1393,8 @@
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
 					if (!body) return;
-					const items = this.modifyListItem(body);
+					let items = this.modifyListItem(body);
+					if (isStarDetail) [_, ...items] = items;
 					infScroll.appendItems(items);
 					infScroll.options.outlayer.appended(items);
 				});
