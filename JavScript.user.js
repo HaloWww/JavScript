@@ -1654,6 +1654,10 @@
                 .row.movie {
                     padding: 0 !important;
                 }
+                #magneturlpost + .movie {
+                    padding: 10px !important;
+                    margin-top: 20px !important;
+                }
 				.screencap, .info {
 				    padding: 10px !important;
 				    border: none !important;
@@ -1690,16 +1694,6 @@
                 .movie-box > * {
                     text-align: left !important;
                 }
-                #magneturlpost + .movie {
-                    padding: 10px !important;
-                    margin-top: 20px !important;
-                }
-                .x-table {
-                    margin: 0 !important;
-                }
-                td, th {
-				    vertical-align: middle !important;
-				}
                 .x-ml {
                     margin-left: 10px;
                 }
@@ -1726,9 +1720,8 @@
                 .x-contain {
                     object-fit: contain;
                 }
-                .x-video {
-                    cursor: pointer;
-                    opacity: 0;
+                .x-table {
+                    margin: 0 !important;
                 }
                 .x-caption {
                     display: flex;
@@ -1742,42 +1735,31 @@
                     display: table;
                     width: 100%;
                 }
+                .x-table tr > * {
+                    vertical-align: middle !important;
+                    border-left: none !important;
+				}
+                .x-table tr > *:first-child {
+                    width: 33%;
+                    max-width: 580px;
+                }
+                .x-table tr > *:last-child,
+                .x-table tfoot tr > *:first-child {
+                    border-right: none !important;
+                }
                 .x-table tbody {
                     display: block;
                     max-height: calc(37px * 10 - 1px);
                     overflow: overlay;
                     table-layout: fixed;
                 }
-                .x-table thead th {
-                    border-left: none !important;
-                }
-                .x-table thead th:last-child {
-                    border-right: none !important;
-                }
-                .x-table tbody th,
-                .x-table tbody td {
+                .x-table tbody tr > * {
                     border-top: none !important;
-                    border-left: none !important;
                 }
-                .x-table tbody td:last-child {
-                    border-right: none !important;
-                }
-                .x-table tbody tr:last-child th,
-                .x-table tbody tr:last-child td {
+                .x-table tbody tr:last-child > *,
+                .x-table tfoot tr > * {
                     border-bottom: none !important;
                 }
-                .x-table tfoot th,
-                .x-table tfoot td {
-                    border-right: none !important;
-                    border-bottom: none !important;
-                }
-                .x-table tfoot th {
-                    border-left: none !important;
-                }
-                .x-lname {
-				    width: 33%;
-                    max-width: 580px;
-				}
                 `;
 				const dmStyle = `
                 .movie,
@@ -1802,14 +1784,16 @@
 				const params = this.getParams();
 
 				addCopyTarget("h3", { title: "复制标题" });
+
+				this.modifyCover();
+				this._movieTitle(params);
+
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
 
-				this._movieTitle(params);
-				this._movieStar(params);
-				this.modifyCover();
-				this._movieImg(params);
+				// this._movieImg(params);
 				// this._movieVideo(params);
 				// this._moviePlayer(params);
+				// this._movieStar(params);
 
 				const tableObs = new MutationObserver((_, obs) => {
 					obs.disconnect();
@@ -1831,6 +1815,16 @@
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
 			},
+			modifyCover() {
+				const node = DOC.querySelector(".bigImage");
+				const img = node.querySelector("img");
+				img.classList.add("x-grass-img");
+				node.insertAdjacentHTML(
+					"beforeend",
+					`<div class="x-grass-mask"></div><img src="${img.src}" class="x-contain">`
+				);
+				node.classList.add("x-in");
+			},
 			async _movieTitle(params) {
 				const start = () => {
 					DOC.querySelector(".info").insertAdjacentHTML(
@@ -1841,36 +1835,6 @@
 				const transTitle = await this.movieTitle(params, start);
 				const transTitleNode = DOC.querySelector(".x-transTitle");
 				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
-			},
-			async _movieStar(params) {
-				const start = () => {
-					const starShow = DOC.querySelector("p.star-show");
-					starShow.nextElementSibling.nextSibling.remove();
-					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
-				};
-
-				const star = await this.movieStar(params, start);
-				const starNode = DOC.querySelector(".x-star");
-
-				if (!star?.length) {
-					if (starNode) starNode.textContent = "暂无演员数据";
-					return;
-				}
-
-				starNode.innerHTML = star.reduce(
-					(acc, cur) => `${acc}<span class="genre"><label><a href="/search/${cur}">${cur}</a></label></span>`,
-					""
-				);
-			},
-			modifyCover() {
-				const node = DOC.querySelector(".bigImage");
-				const img = node.querySelector("img");
-				img.classList.add("x-grass-img");
-				node.insertAdjacentHTML(
-					"beforeend",
-					`<div class="x-grass-mask"></div><img src="${img.src}" class="x-contain">`
-				);
-				node.classList.add("x-in");
 			},
 			async _movieImg(params) {
 				const start = () => {
@@ -1941,9 +1905,28 @@
 				const player = await this.moviePlayer(params);
 				if (!player?.length) return;
 			},
+			async _movieStar(params) {
+				const start = () => {
+					const starShow = DOC.querySelector("p.star-show");
+					starShow.nextElementSibling.nextSibling.remove();
+					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
+				};
+
+				const star = await this.movieStar(params, start);
+				const starNode = DOC.querySelector(".x-star");
+
+				if (!star?.length) {
+					if (starNode) starNode.textContent = "暂无演员数据";
+					return;
+				}
+
+				starNode.innerHTML = star.reduce(
+					(acc, cur) => `${acc}<span class="genre"><label><a href="/search/${cur}">${cur}</a></label></span>`,
+					""
+				);
+			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
-
 				table.parentElement.innerHTML = `
 				<table class="table table-striped table-hover table-bordered x-table">
                     <caption>
@@ -1951,7 +1934,7 @@
                     </caption>
 				    <thead>
 				        <tr>
-				            <th scope="col" class="x-lname">磁力名称</th>
+				            <th scope="col">磁力名称</th>
 				            <th scope="col">档案大小</th>
 				            <th scope="col" class="text-center">分享日期</th>
 				            <th scope="col" class="text-center">来源</th>
@@ -1966,20 +1949,19 @@
                     </tbody>
 				    <tfoot>
 				        <tr>
-                            <th scope="row" class="x-lname"></th>
+                            <th scope="row"></th>
 				            <th scope="row" colspan="4" class="text-right">总数</th>
 				            <td>0</td>
 				        </tr>
 				    </tfoot>
 				</table>
 				`;
-
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
 					if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
 					console.log(e.target.dataset);
 				});
 
-				let magnets = [];
+				const magnets = [];
 				for (const tr of table.querySelectorAll("tr")) {
 					const [link, size, date] = tr.querySelectorAll("td");
 					const _link = link?.querySelector("a");
@@ -1994,7 +1976,6 @@
 						date: date.textContent.trim(),
 					});
 				}
-
 				this.refactorTd(magnets);
 			},
 			async _movieMagnet(params) {
@@ -2004,32 +1985,24 @@
 						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
 					);
 				};
-
-				let magnets = await this.movieMagnet(params, start);
-				if (!magnets?.length) return;
-
+				const magnets = await this.movieMagnet(params, start);
 				this.refactorTd(magnets);
 			},
 			refactorTd(magnets) {
-				const table = DOC.querySelector(".x-table");
 				let sortStart = () => {
-					table
-						.querySelector(".x-caption")
-						.insertAdjacentHTML(
-							"beforeend",
-							`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
-						);
+					DOC.querySelector(".x-caption").insertAdjacentHTML(
+						"beforeend",
+						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
+					);
 				};
-
 				if (this.magnets) {
 					sortStart = null;
 					magnets = [...this.magnets, ...magnets];
 				}
-
 				magnets = this.movieSort(magnets, sortStart);
 				this.magnets = magnets;
+				const table = DOC.querySelector(".x-table");
 				table.querySelector("tfoot td").textContent = magnets.length;
-
 				magnets = this.createTd(magnets);
 				if (magnets) table.querySelector("tbody").innerHTML = magnets;
 			},
@@ -2039,7 +2012,7 @@
 					(acc, { name, link, size, date, from, href, zh }) => `
                     ${acc}
                     <tr>
-                        <th scope="row" class="x-lname x-line" title="${name}">
+                        <th scope="row" class="x-line" title="${name}">
                             <a href="${link}">${name}</a>
                         </th>
                         <td>${size}</td>
