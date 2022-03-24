@@ -1693,10 +1693,7 @@
                     margin-right: 10px;
                 }
                 .x-grass-img {
-                    width: auto !important;
-                    height: auto !important;
-                    min-width: 100%;
-                    min-height: 100%;
+                    object-fit: cover;
                 }
                 .x-grass-mask,
                 .x-contain {
@@ -1712,6 +1709,12 @@
                 .x-contain {
                     opacity: 0;
                     object-fit: contain;
+                }
+                video.x-contain {
+                    z-index: -1;
+                }
+                video.x-contain.x-in {
+                    z-index: auto;
                 }
                 #x-switch {
                     display: none;
@@ -1821,6 +1824,7 @@
 					`<div class="x-grass-mask"></div><img src="${img.src}" id="x-switch-cover" class="x-contain x-in">`
 				);
 				node.classList.add("x-in");
+
 				DOC.querySelector(".info").insertAdjacentHTML(
 					"afterbegin",
 					`<div class="btn-group btn-group-justified" id="x-switch" role="group">
@@ -1829,6 +1833,27 @@
                         </div>
                     </div>`
 				);
+
+				DOC.querySelector("#x-switch").addEventListener("click", ({ target }) => {
+					const forId = target.getAttribute("for");
+					if (!forId || target.classList.contains("active")) return;
+
+					DOC.querySelector("#x-switch .active").classList.toggle("active");
+					target.classList.toggle("active");
+
+					const bigImage = DOC.querySelector(".bigImage");
+					const targetNode = DOC.querySelector(`#${forId}`);
+					bigImage.querySelector(".x-in").classList.toggle("x-in");
+					targetNode.classList.toggle("x-in");
+
+					const video = bigImage.querySelector("video:not(.x-in)");
+					video?.pause();
+
+					const { nodeName, src } = targetNode;
+					if (nodeName === "VIDEO") return targetNode.play();
+					bigImage.href = src;
+					bigImage.querySelector(".x-grass-img").src = src;
+				});
 			},
 			_movieImg(params) {
 				this.updateSwitch({
@@ -1884,6 +1909,12 @@
 					item.preload = "auto";
 					item.currentTime = 3;
 					item.muted = true;
+					item.addEventListener("click", e => {
+						e.preventDefault();
+						e.stopPropagation();
+						const { target: video } = e;
+						video.paused ? video.play() : video.pause();
+					});
 				}
 				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
