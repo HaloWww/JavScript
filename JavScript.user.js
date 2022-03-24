@@ -357,6 +357,7 @@
 			}
 			return magnets;
 		}
+		static async moviePlayer(code) {}
 	}
 	class Common {
 		docStart = () => {};
@@ -902,20 +903,13 @@
             font-weight: bold;
             color: var(--x-blue);
         }
-        .x-player,
-        .x-loading {
+        .x-player {
             position: relative;
             overflow: hidden;
             display: block;
-        }
-        .x-player {
             cursor: pointer;
         }
-        .x-loading {
-            cursor: default;
-        }
-        .x-player::after,
-        .x-loading::after {
+        .x-player::after {
             content: "";
             position: absolute;
             width: 100%;
@@ -926,25 +920,14 @@
             background-color: rgba(0, 0, 0, .2);
             background-position: center;
             background-repeat: no-repeat;
-        }
-        .x-player::after {
             opacity: .8;
             background-image: url(${GM_getResourceURL("play")});
             background-size: 40px;
         }
-        .x-loading::after {
-            opacity: 1;
-            background-image: url(${GM_getResourceURL("loading")});
-            background-size: 80px;
-        }
         .x-player:hover::after {
             background-color: rgba(0, 0, 0, 0);
         }
-        .x-loading:hover::after {
-            background-color: rgba(0, 0, 0, .2);
-        }
-        .x-player img,
-        .x-loading img {
+        .x-player img {
             filter: none !important;
         }
         `;
@@ -1111,7 +1094,16 @@
 			return star;
 		};
 		// M_PLAYER
-		moviePlayer = () => {};
+		moviePlayer = async ({ code }, start) => {
+			if (!this.M_PLAYER) return;
+			start && start();
+			let player = Store.getDetail(code)?.player;
+			if (!player) {
+				player = await Apis.moviePlayer(code);
+				if (player) Store.upDetail(code, { player });
+			}
+			return player;
+		};
 		// M_SORT
 		movieSort = (magnets, start) => {
 			if (!this.M_SORT) return magnets;
@@ -1718,7 +1710,15 @@
                     backdrop-filter: blur(50px);
                 }
                 .x-contain {
+                    opacity: 0;
                     object-fit: contain;
+                }
+                #x-switch {
+                    display: none;
+                    margin: 0 auto 10px;
+                }
+                #x-switch .btn-group:not(:last-child) button {
+                    border-right: none;
                 }
                 .x-table {
                     margin: 0 !important;
@@ -1785,9 +1785,9 @@
 
 				addCopyTarget("h3", { title: "复制标题" });
 				this.modifyCover();
-				// this._movieImg(params);
-				// this._movieVideo(params);
-				// this._moviePlayer(params);
+				this._movieImg(params);
+				this._movieVideo(params);
+				this._moviePlayer(params);
 				this._movieTitle(params);
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
 				this._movieStar(params);
@@ -1818,83 +1818,79 @@
 				img.classList.add("x-grass-img");
 				node.insertAdjacentHTML(
 					"beforeend",
-					`<div class="x-grass-mask"></div><img src="${img.src}" class="x-contain">`
+					`<div class="x-grass-mask"></div><img src="${img.src}" id="x-switch-cover" class="x-contain x-in">`
 				);
 				node.classList.add("x-in");
-			},
-			async _movieImg(params) {
-				const start = () => {
-					// DOC.querySelector(".info").insertAdjacentHTML(
-					// 	"afterbegin",
-					// 	`<p><span class="header">预览大图: </span><span class="x-img">查询中...</span></p>`
-					// );
-				};
-
-				const img = await this.movieImg(params, start);
-				// const imgNode = DOC.querySelector(".x-img");
-
-				if (!img) {
-					// if (imgNode) imgNode.textContent = "暂无预览大图";
-					return;
-				}
-
-				// imgNode.innerHTML = `<a href="${img}" target="_blank"><span class="label label-success"><span class="glyphicon glyphicon-eye-open" aria-hidden="true"></span> 点击查看</span></a>`;
-			},
-			async _movieVideo(params) {
-				const start = () => {
-					const player = DOC.create("div", { class: "x-player x-loading" }, DOC.querySelector(".bigImage"));
-					DOC.querySelector(".screencap").insertAdjacentElement("afterbegin", player);
-				};
-
-				const video = await this.movieVideo(params, start);
-				const player = DOC.querySelector(".x-player");
-
-				if (!video) {
-					if (player) {
-						player.removeAttribute("class");
-						player.setAttribute("title", "暂无预览视频");
-					}
-					return;
-				}
-
-				player.classList.remove("x-loading");
-				player.setAttribute("title", "查看预览视频");
-
-				const videoNode = DOC.create("video", { controls: "controls", src: video, class: "x-video" });
-				videoNode.currentTime = 3;
-				videoNode.preload = "auto";
-				videoNode.muted = true;
-				videoNode.addEventListener("click", e => {
-					e.preventDefault();
-					e.stopPropagation();
-					const { target: videoTarget } = e;
-					videoTarget.paused ? videoTarget.play() : videoTarget.pause();
-				});
-				const bigImage = DOC.querySelector(".bigImage");
-				bigImage.removeAttribute("href");
-				bigImage.insertAdjacentElement("beforeend", videoNode);
-
-				player.addEventListener(
-					"click",
-					() => {
-						player.removeAttribute("class");
-						player.removeAttribute("title");
-						player.querySelector(".x-contain").classList.add("x-out");
-						videoNode.classList.add("x-in");
-						videoNode.play();
-						videoNode.focus();
-					},
-					{ once: true }
+				DOC.querySelector(".info").insertAdjacentHTML(
+					"afterbegin",
+					`<div class="btn-group btn-group-justified" id="x-switch" role="group">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-default active" for="x-switch-cover">封面</button>
+                        </div>
+                    </div>`
 				);
 			},
-			async _moviePlayer(params) {
-				const player = await this.moviePlayer(params);
-				if (!player?.length) return;
+			_movieImg(params) {
+				this.updateSwitch({
+					key: "img",
+					title: "预览大图",
+					fetchFuncKey: "movieImg",
+					fetchFuncParams: params,
+					type: "img",
+				});
+			},
+			_movieVideo(params) {
+				this.updateSwitch({
+					key: "video",
+					title: "预览视频",
+					fetchFuncKey: "movieVideo",
+					fetchFuncParams: params,
+				});
+			},
+			_moviePlayer(params) {
+				this.updateSwitch({
+					key: "player",
+					title: "在线播放",
+					fetchFuncKey: "moviePlayer",
+					fetchFuncParams: params,
+				});
+			},
+			async updateSwitch({ key, title, fetchFuncKey, fetchFuncParams, type = "video" }) {
+				const switcher = DOC.querySelector("#x-switch");
+				const id = `x-switch-${key}`;
+
+				const start = () => {
+					switcher.insertAdjacentHTML(
+						"beforeend",
+						`
+				        <div class="btn-group btn-group-sm" role="group">
+				            <button type="button" class="btn btn-default" for="${id}" disabled>${title}</button>
+				        </div>
+				        `
+					);
+				};
+				const src = await this[fetchFuncKey](fetchFuncParams, start);
+
+				const node = switcher.querySelector(`button[for="${id}"]`);
+				if (!node) return;
+
+				if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
+				if (!src) return node.parentElement.setAttribute("title", `暂无${title}`);
+
+				node.removeAttribute("disabled");
+				const item = DOC.create(type, { src, id, class: "x-contain" });
+				if (type === "video") {
+					item.controls = "controls";
+					item.preload = "auto";
+					item.currentTime = 3;
+					item.muted = true;
+				}
+				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
 			async _movieTitle(params) {
 				const start = () => {
-					DOC.querySelector(".info").insertAdjacentHTML(
-						"afterbegin",
+					DOC.querySelector("#x-switch").insertAdjacentHTML(
+						"afterend",
 						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
 					);
 				};
