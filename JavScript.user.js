@@ -1784,16 +1784,13 @@
 				const params = this.getParams();
 
 				addCopyTarget("h3", { title: "复制标题" });
-
 				this.modifyCover();
-				this._movieTitle(params);
-
-				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
-
 				// this._movieImg(params);
 				// this._movieVideo(params);
 				// this._moviePlayer(params);
-				// this._movieStar(params);
+				this._movieTitle(params);
+				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
+				this._movieStar(params);
 
 				const tableObs = new MutationObserver((_, obs) => {
 					obs.disconnect();
@@ -1824,17 +1821,6 @@
 					`<div class="x-grass-mask"></div><img src="${img.src}" class="x-contain">`
 				);
 				node.classList.add("x-in");
-			},
-			async _movieTitle(params) {
-				const start = () => {
-					DOC.querySelector(".info").insertAdjacentHTML(
-						"afterbegin",
-						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
-					);
-				};
-				const transTitle = await this.movieTitle(params, start);
-				const transTitleNode = DOC.querySelector(".x-transTitle");
-				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
 			},
 			async _movieImg(params) {
 				const start = () => {
@@ -1904,6 +1890,17 @@
 			async _moviePlayer(params) {
 				const player = await this.moviePlayer(params);
 				if (!player?.length) return;
+			},
+			async _movieTitle(params) {
+				const start = () => {
+					DOC.querySelector(".info").insertAdjacentHTML(
+						"afterbegin",
+						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
+					);
+				};
+				const transTitle = await this.movieTitle(params, start);
+				const transTitleNode = DOC.querySelector(".x-transTitle");
+				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
 			},
 			async _movieStar(params) {
 				const start = () => {
