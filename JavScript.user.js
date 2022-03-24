@@ -12,7 +12,6 @@
 // @resource        info https://z3.ax1x.com/2021/10/15/53g2TK.png
 // @resource        success https://z3.ax1x.com/2021/10/15/53gqTf.png
 // @resource        play https://s4.ax1x.com/2022/01/12/7nYuKe.png
-// @resource        loading https://s1.ax1x.com/2022/03/21/qnIOqe.gif
 // @connect         *
 // @run-at          document-start
 // @grant           GM_registerMenuCommand
