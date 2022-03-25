@@ -1708,19 +1708,17 @@
                 .x-contain {
                     opacity: 0;
                     object-fit: contain;
-                }
-                video.x-contain {
                     z-index: -1;
                 }
-                video.x-contain.x-in {
-                    z-index: auto;
+                .x-contain.x-in {
+                    z-index: 1 !important;
                 }
                 #x-switch {
                     display: none;
                     margin: 0 auto 10px;
                 }
-                #x-switch .btn-group:not(:last-child) button {
-                    border-right: none;
+                #x-switch button {
+                    border-width: .5px !important;
                 }
                 .x-table {
                     margin: 0 !important;
@@ -1815,16 +1813,19 @@
 				};
 			},
 			modifyCover() {
-				const node = DOC.querySelector(".bigImage");
-				const img = node.querySelector("img");
+				const bigImage = DOC.querySelector(".bigImage");
+
+				const img = bigImage.querySelector("img");
 				img.classList.add("x-grass-img");
-				node.insertAdjacentHTML(
+
+				bigImage.insertAdjacentHTML(
 					"beforeend",
 					`<div class="x-grass-mask"></div><img src="${img.src}" id="x-switch-cover" class="x-contain x-in">`
 				);
-				node.classList.add("x-in");
+				bigImage.classList.add("x-in");
 
-				DOC.querySelector(".info").insertAdjacentHTML(
+				const info = DOC.querySelector(".info");
+				info.insertAdjacentHTML(
 					"afterbegin",
 					`<div class="btn-group btn-group-justified" id="x-switch" role="group">
                         <div class="btn-group btn-group-sm" role="group">
@@ -1833,20 +1834,20 @@
                     </div>`
 				);
 
-				DOC.querySelector("#x-switch").addEventListener("click", ({ target }) => {
-					const forId = target.getAttribute("for");
-					if (!forId || target.classList.contains("active")) return;
+				const switcher = info.querySelector("#x-switch");
+				switcher.addEventListener("click", ({ target }) => {
+					const id = target.getAttribute("for");
+					const { classList } = target;
 
-					DOC.querySelector("#x-switch .active").classList.toggle("active");
-					target.classList.toggle("active");
+					if (!id || classList.contains("active")) return;
 
-					const bigImage = DOC.querySelector(".bigImage");
-					const targetNode = DOC.querySelector(`#${forId}`);
-					bigImage.querySelector(".x-in").classList.toggle("x-in");
+					switcher.querySelector("button.active").classList.toggle("active");
+					classList.toggle("active");
+
+					bigImage.querySelector(".x-contain.x-in").classList.toggle("x-in");
+					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v.pause());
+					const targetNode = bigImage.querySelector(`#${id}`);
 					targetNode.classList.toggle("x-in");
-
-					const video = bigImage.querySelector("video:not(.x-in)");
-					video?.pause();
 
 					const { nodeName, src } = targetNode;
 					if (nodeName === "VIDEO") return targetNode.play();
@@ -1880,17 +1881,15 @@
 				});
 			},
 			async updateSwitch({ key, title, fetchFuncKey, fetchFuncParams, type = "video" }) {
-				const switcher = DOC.querySelector("#x-switch");
 				const id = `x-switch-${key}`;
+				const switcher = DOC.querySelector("#x-switch");
 
 				const start = () => {
 					switcher.insertAdjacentHTML(
 						"beforeend",
-						`
-				        <div class="btn-group btn-group-sm" role="group">
+						`<div class="btn-group btn-group-sm" role="group" title="查询中...">
 				            <button type="button" class="btn btn-default" for="${id}" disabled>${title}</button>
-				        </div>
-				        `
+				        </div>`
 					);
 				};
 				const src = await this[fetchFuncKey](fetchFuncParams, start);
@@ -1899,15 +1898,18 @@
 				if (!node) return;
 
 				if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
-				if (!src) return node.parentElement.setAttribute("title", `暂无${title}`);
+				const nodeParent = node.parentNode;
+				if (!src) return nodeParent.setAttribute("title", `暂无${title}资源`);
 
+				nodeParent.removeAttribute("title");
 				node.removeAttribute("disabled");
+
 				const item = DOC.create(type, { src, id, class: "x-contain" });
 				if (type === "video") {
-					item.controls = "controls";
-					item.preload = "auto";
+					item.controls = true;
 					item.currentTime = 3;
 					item.muted = true;
+					item.preload = "auto";
 					item.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
@@ -1915,6 +1917,7 @@
 						video.paused ? video.play() : video.pause();
 					});
 				}
+
 				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
 			async _movieTitle(params) {
