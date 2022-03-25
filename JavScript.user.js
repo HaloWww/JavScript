@@ -356,7 +356,65 @@
 			}
 			return magnets;
 		}
-		static async moviePlayer(code) {}
+		static async moviePlayer(code) {
+			const codeReg = new RegExp(code, "gi");
+			const matchList = [
+				{
+					site: "Netflav",
+					host: "https://netflav.com/",
+					search: "search?type=title&keyword=%s",
+					selectors: ".grid_root .grid_cell",
+					filter: { name: e => e?.querySelector(".grid_title").textContent },
+				},
+				{
+					site: "BestJavPorn",
+					host: "https://www2.bestjavporn.com/",
+					search: "search/%s/",
+					selectors: "#main article",
+					filter: {
+						name: e => e?.querySelector("a").title,
+						zh: e => /中文/g.test(e?.querySelector(".hd-video")?.textContent ?? ""),
+					},
+				},
+				{
+					site: "JavHHH",
+					host: "https://javhhh.com/",
+					search: "v/?wd=%s",
+					selectors: "#wrapper .typelist .i-container",
+					filter: { name: e => e?.querySelector("img.img-responsive").title },
+				},
+				{
+					site: "Avgle",
+					host: "https://avgle.com/",
+					search: "search/videos?search_query=%s&search_type=videos",
+					selectors: ".row .well.well-sm",
+					filter: { name: e => e?.querySelector(".video-title")?.textContent },
+				},
+			];
+			const matched = await Promise.all(
+				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
+			);
+			const playList = [];
+			for (let index = 0; index < matchList.length; index++) {
+				let node = matched[index];
+				if (!node) continue;
+				const { selectors, site, filter, host } = matchList[index];
+				node = node?.querySelectorAll(selectors);
+				if (!node || !node?.length) continue;
+				for (const item of node) {
+					const player = { from: site };
+					for (const key of Object.keys(filter)) player[key] = filter[key](item);
+					const name = player?.name ?? "";
+					if (!name || !name.match(codeReg)?.length) continue;
+					if (!("zh" in player)) player.zh = /中文/g.test(name);
+					if (!player?.link) player.link = item?.querySelector("a").getAttribute("href");
+					const link = player?.link ?? "";
+					if (link && !link.includes("//")) player.link = `${host}${link.replace(/^\//, "")}`;
+					player.zh ? playList.unshift(player) : playList.push(player);
+				}
+			}
+			return playList[0];
+		}
 	}
 	class Common {
 		docStart = () => {};
@@ -1713,6 +1771,9 @@
                 .x-contain.x-in {
                     z-index: 1 !important;
                 }
+                .mfp-img {
+                    max-height: unset !important;
+                }
                 #x-switch {
                     display: none;
                     margin: 0 auto 10px;
@@ -1870,6 +1931,7 @@
 					title: "预览视频",
 					fetchFuncKey: "movieVideo",
 					fetchFuncParams: params,
+					type: "video",
 				});
 			},
 			_moviePlayer(params) {
@@ -1878,9 +1940,10 @@
 					title: "在线播放",
 					fetchFuncKey: "moviePlayer",
 					fetchFuncParams: params,
+					type: "link",
 				});
 			},
-			async updateSwitch({ key, title, fetchFuncKey, fetchFuncParams, type = "video" }) {
+			async updateSwitch({ key, title, fetchFuncKey, fetchFuncParams, type }) {
 				const id = `x-switch-${key}`;
 				const switcher = DOC.querySelector("#x-switch");
 
@@ -1904,21 +1967,31 @@
 				nodeParent.removeAttribute("title");
 				node.removeAttribute("disabled");
 
-				const item = DOC.create(type, { src, id, class: "x-contain" });
-				if (type === "video") {
-					item.controls = true;
-					item.currentTime = 3;
-					item.muted = true;
-					item.preload = "auto";
-					item.addEventListener("click", e => {
+				if (type === "link") {
+					node.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
-						const { target: video } = e;
-						video.paused ? video.play() : video.pause();
+						GM_openInTab(src.link, {
+							setParent: true,
+							active: true,
+						});
 					});
+				} else {
+					const item = DOC.create(type, { src, id, class: "x-contain" });
+					if (type === "video") {
+						item.controls = true;
+						item.currentTime = 3;
+						item.muted = true;
+						item.preload = "metadata";
+						item.addEventListener("click", e => {
+							e.preventDefault();
+							e.stopPropagation();
+							const { target: video } = e;
+							video.paused ? video.play() : video.pause();
+						});
+					}
+					DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 				}
-
-				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
 			async _movieTitle(params) {
 				const start = () => {
