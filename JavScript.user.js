@@ -1680,6 +1680,7 @@
 			},
 		};
 		details = {
+			params: {},
 			magnets: null,
 			docStart() {
 				const style = `
@@ -1842,21 +1843,22 @@
 				this._globalSearch();
 				this._globalClick();
 
-				const params = this.getParams();
+				this.params = this.getParams();
 
 				addCopyTarget("h3", { title: "复制标题" });
-				this.modifyCover();
-				this._movieImg(params);
-				this._movieVideo(params);
-				this._moviePlayer(params);
-				this._movieTitle(params);
+
+				this.initSwitch();
+				this.updateSwitch({ key: "img", title: "预览大图" });
+				this.updateSwitch({ key: "video", title: "预览视频" });
+				this.updateSwitch({ key: "player", title: "在线播放", type: "link" });
+
+				this._movieTitle();
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
-				this._movieStar(params);
+				this._movieStar();
 
 				const tableObs = new MutationObserver((_, obs) => {
 					obs.disconnect();
 					this.refactorTable();
-					this._movieMagnet(params);
 				});
 				tableObs.observe(DOC.querySelector("#movie-loading"), { attributes: true, attributeFilter: ["style"] });
 
@@ -1873,7 +1875,7 @@
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
 			},
-			modifyCover() {
+			initSwitch() {
 				const bigImage = DOC.querySelector(".bigImage");
 
 				const img = bigImage.querySelector("img");
@@ -1916,38 +1918,14 @@
 					bigImage.querySelector(".x-grass-img").src = src;
 				});
 			},
-			_movieImg(params) {
-				this.updateSwitch({
-					key: "img",
-					title: "预览大图",
-					fetchFuncKey: "movieImg",
-					fetchFuncParams: params,
-					type: "img",
-				});
-			},
-			_movieVideo(params) {
-				this.updateSwitch({
-					key: "video",
-					title: "预览视频",
-					fetchFuncKey: "movieVideo",
-					fetchFuncParams: params,
-					type: "video",
-				});
-			},
-			_moviePlayer(params) {
-				this.updateSwitch({
-					key: "player",
-					title: "在线播放",
-					fetchFuncKey: "moviePlayer",
-					fetchFuncParams: params,
-					type: "link",
-				});
-			},
-			async updateSwitch({ key, title, fetchFuncKey, fetchFuncParams, type }) {
+			async updateSwitch({ key, title, type }) {
 				const id = `x-switch-${key}`;
+				if (!type) type = key;
 				const switcher = DOC.querySelector("#x-switch");
 
 				const start = () => {
+					if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
+
 					switcher.insertAdjacentHTML(
 						"beforeend",
 						`<div class="btn-group btn-group-sm" role="group" title="查询中...">
@@ -1955,26 +1933,22 @@
 				        </div>`
 					);
 				};
-				const src = await this[fetchFuncKey](fetchFuncParams, start);
 
+				const src = await this[`movie${key[0].toUpperCase()}${key.slice(1)}`](this.params, start);
 				const node = switcher.querySelector(`button[for="${id}"]`);
 				if (!node) return;
 
-				if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
 				const nodeParent = node.parentNode;
-				if (!src) return nodeParent.setAttribute("title", `暂无${title}资源`);
-
+				if (!src) return nodeParent.setAttribute("title", "暂无资源");
 				nodeParent.removeAttribute("title");
 				node.removeAttribute("disabled");
 
 				if (type === "link") {
+					node.setAttribute("title", "跳转链接");
 					node.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
-						GM_openInTab(src.link, {
-							setParent: true,
-							active: true,
-						});
+						GM_openInTab(src.link, { setParent: true, active: true });
 					});
 				} else {
 					const item = DOC.create(type, { src, id, class: "x-contain" });
@@ -1993,36 +1967,35 @@
 					DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 				}
 			},
-			async _movieTitle(params) {
+			async _movieTitle() {
 				const start = () => {
 					DOC.querySelector("#x-switch").insertAdjacentHTML(
 						"afterend",
 						`<p><span class="header">机翻标题: </span><span class="x-transTitle">查询中...</span></p>`
 					);
 				};
-				const transTitle = await this.movieTitle(params, start);
+
+				const transTitle = await this.movieTitle(this.params, start);
 				const transTitleNode = DOC.querySelector(".x-transTitle");
 				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
 			},
-			async _movieStar(params) {
+			async _movieStar() {
 				const start = () => {
 					const starShow = DOC.querySelector("p.star-show");
 					starShow.nextElementSibling.nextSibling.remove();
 					starShow.insertAdjacentHTML("afterend", `<p class="x-star">查询中...</p>`);
 				};
 
-				const star = await this.movieStar(params, start);
+				const star = await this.movieStar(this.params, start);
 				const starNode = DOC.querySelector(".x-star");
-
-				if (!star?.length) {
-					if (starNode) starNode.textContent = "暂无演员数据";
-					return;
-				}
-
-				starNode.innerHTML = star.reduce(
-					(acc, cur) => `${acc}<span class="genre"><label><a href="/search/${cur}">${cur}</a></label></span>`,
-					""
-				);
+				if (!starNode) return;
+				starNode.innerHTML = !star?.length
+					? "暂无演员数据"
+					: star.reduce(
+							(acc, cur) =>
+								`${acc}<span class="genre"><label><a href="/search/${cur}">${cur}</a></label></span>`,
+							""
+					  );
 			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
@@ -2055,6 +2028,7 @@
 				    </tfoot>
 				</table>
 				`;
+
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
 					if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
 					console.log(e.target.dataset);
@@ -2075,17 +2049,19 @@
 						date: date.textContent.trim(),
 					});
 				}
+
 				this.refactorTd(magnets);
+				this._movieMagnet();
 			},
-			async _movieMagnet(params) {
+			async _movieMagnet() {
 				const start = () => {
 					DOC.querySelector(".x-caption").insertAdjacentHTML(
 						"beforeend",
 						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
 					);
 				};
-				const magnets = await this.movieMagnet(params, start);
-				this.refactorTd(magnets);
+				const magnets = await this.movieMagnet(this.params, start);
+				if (magnets?.length) this.refactorTd(magnets);
 			},
 			refactorTd(magnets) {
 				let sortStart = () => {
