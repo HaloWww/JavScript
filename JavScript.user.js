@@ -1775,11 +1775,7 @@
                 .mfp-img {
                     max-height: unset !important;
                 }
-                #x-switch {
-                    display: none;
-                    margin: 0 auto 10px;
-                }
-                #x-switch button {
+                .btn-group button {
                     border-width: .5px !important;
                 }
                 .x-table {
@@ -1825,9 +1821,13 @@
                 `;
 				const dmStyle = `
                 .movie,
+                .btn-group button[disabled],
                 .star-box-up li,
                 .table-striped > tbody > tr:nth-of-type(odd) {
                     background: var(--x-sub-bgc) !important;
+                }
+                .btn-group button.active {
+                    background: var(--x-bgc) !important;
                 }
                 tbody tr:hover,
                 .table-striped > tbody > tr:nth-of-type(odd):hover {
@@ -1890,7 +1890,7 @@
 				const info = DOC.querySelector(".info");
 				info.insertAdjacentHTML(
 					"afterbegin",
-					`<div class="btn-group btn-group-justified" id="x-switch" role="group">
+					`<div class="btn-group btn-group-justified mb10" hidden id="x-switch" role="group">
                         <div class="btn-group btn-group-sm" role="group">
                             <button type="button" class="btn btn-default active" for="x-switch-cover">封面</button>
                         </div>
