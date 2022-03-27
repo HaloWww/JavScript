@@ -1908,14 +1908,14 @@
 					classList.toggle("active");
 
 					bigImage.querySelector(".x-contain.x-in").classList.toggle("x-in");
-					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v.pause());
 					const targetNode = bigImage.querySelector(`#${id}`);
 					targetNode.classList.toggle("x-in");
 
+					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v?.pause());
 					const { nodeName, src } = targetNode;
 					if (nodeName === "VIDEO") return targetNode.play();
-					bigImage.href = src;
 					bigImage.querySelector(".x-grass-img").src = src;
+					bigImage.href = src;
 				});
 			},
 			async updateSwitch({ key, title, type }) {
