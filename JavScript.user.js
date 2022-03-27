@@ -183,30 +183,30 @@
 		}
 	}
 	class Apis {
-		static async getDefaultFile() {
-			const res = await request(
-				"https://webapi.115.com/files",
-				{
-					aid: 1,
-					cid: 0,
-					o: "user_ptime",
-					asc: 0,
-					offset: 0,
-					show_dir: 1,
-					limit: 115,
-					code: "",
-					scid: "",
-					snap: "",
-					natsort: 1,
-					record_open_time: 1,
-					source: "",
-					format: "json",
-				},
-				"GET",
-				{ responseType: "json" }
-			);
-			return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
-		}
+		// static async getDefaultFile() {
+		// 	const res = await request(
+		// 		"https://webapi.115.com/files",
+		// 		{
+		// 			aid: 1,
+		// 			cid: 0,
+		// 			o: "user_ptime",
+		// 			asc: 0,
+		// 			offset: 0,
+		// 			show_dir: 1,
+		// 			limit: 115,
+		// 			code: "",
+		// 			scid: "",
+		// 			snap: "",
+		// 			natsort: 1,
+		// 			record_open_time: 1,
+		// 			source: "",
+		// 			format: "json",
+		// 		},
+		// 		"GET",
+		// 		{ responseType: "json" }
+		// 	);
+		// 	return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
+		// }
 		static async movieTitle(sentence) {
 			const st = encodeURIComponent(sentence.trim());
 			const data = {
@@ -224,7 +224,7 @@
 			code = code.toLowerCase();
 
 			if (studio) {
-				const matchStudios = [
+				const matchList = [
 					{
 						name: "東京熱",
 						match: "https://my.cdn.tokyo-hot.com/media/samples/%s.mp4",
@@ -243,12 +243,12 @@
 						match: "https://www.heyzo.com/contents/3000/%s/heyzo_hd_%s_sample.mp4",
 					},
 				];
-				const matched = matchStudios.find(({ name }) => name === studio);
+				const matched = matchList.find(({ name }) => name === studio);
 				if (matched) return matched.match.replace(/%s/g, matched.trans ? matched.trans(code) : code);
 			}
 
 			let [r18, xrmoo] = await Promise.all([
-				request(`https://www.r18.com/common/search/order=match/searchword=${code}`),
+				request(`https://www.r18.com/common/search/order=match/searchword=${code}/`),
 				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
 			]);
 
@@ -273,7 +273,11 @@
 			]);
 
 			const [bjRes, jsRes] = await Promise.all([
-				request(blogJav?.querySelector("#rso .g .yuRUbf a")?.href),
+				request(
+					`http://webcache.googleusercontent.com/search?q=cache:${
+						blogJav?.querySelector("#rso .g .yuRUbf a")?.href
+					}`
+				),
 				request(javStore?.querySelector("#content_news li a")?.href),
 			]);
 
@@ -290,7 +294,7 @@
 		static async movieStar(code) {
 			code = code.toUpperCase();
 			const site = "https://javdb.com";
-			let res = await request(`${site}/search?q=${code}`);
+			let res = await request(`${site}/search?q=${code}&sb=0`);
 			const href = res?.querySelector("#videos .grid-item a").getAttribute("href");
 			if (!href) return;
 			res = await request(`${site}${href}`);
@@ -331,25 +335,29 @@
 					},
 				},
 			];
+
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
+
 			const magnets = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
+
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
 				if (!node?.length) continue;
+
 				for (const item of node) {
 					const magnet = { from: site };
 					Object.keys(filter).forEach(key => {
-						magnet[key] = filter[key](item).trim();
+						magnet[key] = filter[key](item)?.trim();
 					});
 					magnet.bytes = transToBytes(magnet.size);
-					if (!("zh" in magnet)) magnet.zh = /中文/g.test(magnet.name);
+					magnet.zh = /中文/g.test(magnet.name);
 					magnet.link = magnet.link.split("&")[0];
-					const href = magnet?.href;
+					const { href } = magnet;
 					if (href && !href.includes("//")) magnet.href = `${host}${href.replace(/^\//, "")}`;
 					magnets.push(magnet);
 				}
@@ -358,13 +366,16 @@
 		}
 		static async moviePlayer(code) {
 			const codeReg = new RegExp(code, "gi");
+
 			const matchList = [
 				{
 					site: "Netflav",
 					host: "https://netflav.com/",
 					search: "search?type=title&keyword=%s",
 					selectors: ".grid_root .grid_cell",
-					filter: { name: e => e?.querySelector(".grid_title").textContent },
+					filter: {
+						name: e => e?.querySelector(".grid_title").textContent,
+					},
 				},
 				{
 					site: "BestJavPorn",
@@ -381,39 +392,52 @@
 					host: "https://javhhh.com/",
 					search: "v/?wd=%s",
 					selectors: "#wrapper .typelist .i-container",
-					filter: { name: e => e?.querySelector("img.img-responsive").title },
+					filter: {
+						name: e => e?.querySelector("img.img-responsive").title,
+					},
 				},
 				{
 					site: "Avgle",
 					host: "https://avgle.com/",
 					search: "search/videos?search_query=%s&search_type=videos",
 					selectors: ".row .well.well-sm",
-					filter: { name: e => e?.querySelector(".video-title")?.textContent },
+					filter: {
+						name: e => e?.querySelector(".video-title")?.textContent,
+					},
 				},
 			];
+
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
-			const playList = [];
+
+			const players = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
+
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
-				if (!node || !node?.length) continue;
+				if (!node?.length) continue;
+
 				for (const item of node) {
 					const player = { from: site };
-					for (const key of Object.keys(filter)) player[key] = filter[key](item);
-					const name = player?.name ?? "";
-					if (!name || !name.match(codeReg)?.length) continue;
+					Object.keys(filter).forEach(key => {
+						player[key] = filter[key](item) ?? "";
+					});
+					const { name } = player;
+					let link = item?.querySelector("a")?.getAttribute("href");
+					if (!name || !name.match(codeReg)?.length || !link) continue;
+					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
 					if (!("zh" in player)) player.zh = /中文/g.test(name);
-					if (!player?.link) player.link = item?.querySelector("a").getAttribute("href");
-					const link = player?.link ?? "";
-					if (link && !link.includes("//")) player.link = `${host}${link.replace(/^\//, "")}`;
-					player.zh ? playList.unshift(player) : playList.push(player);
+					if (player.zh) {
+						players.unshift(player);
+						break;
+					}
+					players.push(player);
 				}
 			}
-			return playList[0];
+			return players.length ? players[0].link : "";
 		}
 	}
 	class Common {
@@ -989,9 +1013,9 @@
         }
         `;
 		// G_DARK
-		globalDark = (light = "", dark = "") => {
-			const css = this.G_DARK ? `${light}${dark}` : light;
-			GM_addStyle(css.includes("var(--x-") ? `${this.variables}${css}` : css);
+		globalDark = (css = "", dark = "") => {
+			if (this.G_DARK) css += dark;
+			if (css) GM_addStyle(css.includes("var(--x-") ? `${this.variables}${css}` : css);
 		};
 		// G_SEARCH
 		globalSearch = (selectors, pathname) => {
@@ -1948,7 +1972,7 @@
 					node.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
-						GM_openInTab(src.link, { setParent: true, active: true });
+						GM_openInTab(src, { setParent: true, active: true });
 					});
 				} else {
 					const item = DOC.create(type, { src, id, class: "x-contain" });
@@ -2031,7 +2055,7 @@
 
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
 					if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
-					console.log(e.target.dataset);
+					console.info(e.target.dataset);
 				});
 
 				const magnets = [];
