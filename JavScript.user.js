@@ -622,6 +622,7 @@
 				// },
 			],
 		};
+		pickCodePrefix = "https://v.anxia.com/?pickcode=";
 
 		init() {
 			Store.init();
@@ -1238,7 +1239,56 @@
 		};
 
 		// D_MATCH
-		driveMatch = () => {};
+		driveMatch = async (code, res) => {
+			if (!this.D_MATCH) return;
+			const prefix = code.split(/(-|_)/g)[0];
+
+			if (res === "list") {
+				res = Store.getDetail(code)?.res;
+
+				if (!res?.length) {
+					const RESOURCE = GM_getValue("RESOURCE", []);
+					let item = RESOURCE.find(item => item.prefix === prefix);
+					if (!item) {
+						item = { prefix, res: await Apis.searchFile(prefix) };
+						RESOURCE.push(item);
+						GM_setValue("RESOURCE", RESOURCE);
+					}
+					res = await this.driveMatch(code, item.res);
+				}
+			} else {
+				if (!res) res = await Apis.searchFile(prefix);
+
+				if (res?.length) {
+					const codes = [
+						...new Set([
+							code,
+							code.replace(/-/g, ""),
+							code.replace(/-/g, "."),
+							code.replace(/-0/g, "."),
+							code.replace(/-/g, "-0"),
+							code.replace(/-/g, "0"),
+							code.replace(/-/g, "00"),
+							code.replace(/-/g, "_"),
+							code.replace(/-/g, "_0"),
+							code.replace(/-0/g, ""),
+							code.replace(/-0/g, "-"),
+							code.replace(/-0/g, "00"),
+						]),
+					];
+
+					const codeReg = new RegExp(`(${codes.join("|").replace(/\./g, "\\.")})+`, "gi");
+
+					res = res
+						.filter(({ n, play_long }) => n.match(codeReg) && play_long)
+						.map(({ n: name, pc: pickCode, fid, cid, te, tp, t: date }) => {
+							return { name, pickCode, fid, cid, timestamp: Math.max(te, tp), date };
+						});
+				}
+				Store.upDetail(code, { res });
+			}
+			return res;
+		};
 		// D_OFFLINE
 		driveOffLine = () => {};
 		// D_VERIFY
@@ -1506,6 +1556,7 @@
 					this.modifyAvatarBox(item);
 					this.modifyMovieBox(item);
 				}
+				this._driveMatch(container);
 				return items;
 			},
 			_listMovieImgType(node) {
@@ -1536,6 +1587,29 @@
 						continue;
 					}
 					span.classList.add("x-line");
+				}
+			},
+			async _driveMatch(node = DOC) {
+				const items = node.querySelectorAll(".movie-box");
+				for (const item of items) {
+					const code = item.querySelector("date")?.textContent?.trim();
+					if (!code) continue;
+
+					const res = await this.driveMatch(code, "list");
+					if (!res?.length) continue;
+
+					item.querySelector(".x-title").classList.add("x-matched");
+					const frame = item.querySelector(".photo-frame");
+					frame.classList.add("x-player");
+					frame.setAttribute("title", "点击播放");
+					frame.addEventListener("click", e => {
+						e.preventDefault();
+						e.stopPropagation();
+						GM_openInTab(`${this.pickCodePrefix}${res[0].pickCode}`, {
+							setParent: true,
+							active: true,
+						});
+					});
 				}
 			},
 		};
