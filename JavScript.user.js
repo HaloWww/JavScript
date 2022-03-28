@@ -1503,9 +1503,9 @@
 					item.removeAttribute("style");
 					item.setAttribute("class", "item");
 					this._listMovieImgType(item);
+					this.modifyAvatarBox(item);
+					this.modifyMovieBox(item);
 				}
-				this.modifyAvatarBox(container);
-				this.modifyMovieBox(container);
 				return items;
 			},
 			_listMovieImgType(node) {
