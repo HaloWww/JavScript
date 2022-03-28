@@ -184,30 +184,6 @@
 		}
 	}
 	class Apis {
-		// static async getDefaultFile() {
-		// 	const res = await request(
-		// 		"https://webapi.115.com/files",
-		// 		{
-		// 			aid: 1,
-		// 			cid: 0,
-		// 			o: "user_ptime",
-		// 			asc: 0,
-		// 			offset: 0,
-		// 			show_dir: 1,
-		// 			limit: 115,
-		// 			code: "",
-		// 			scid: "",
-		// 			snap: "",
-		// 			natsort: 1,
-		// 			record_open_time: 1,
-		// 			source: "",
-		// 			format: "json",
-		// 		},
-		// 		"GET",
-		// 		{ responseType: "json" }
-		// 	);
-		// 	return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
-		// }
 		static async movieImg(code) {
 			code = code.toUpperCase();
 
@@ -434,6 +410,31 @@
 			}
 			return magnets;
 		}
+		static async getDefaultFile() {
+			const res = await request(
+				"https://webapi.115.com/files",
+				{
+					aid: 1,
+					cid: 0,
+					o: "user_ptime",
+					asc: 0,
+					offset: 0,
+					show_dir: 1,
+					limit: 115,
+					code: "",
+					scid: "",
+					snap: "",
+					natsort: 1,
+					record_open_time: 1,
+					source: "",
+					format: "json",
+				},
+				"GET",
+				{ responseType: "json" }
+			);
+			console.log(res);
+			// return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
+		}
 	}
 	class Common {
 		docStart = () => {};
@@ -464,10 +465,11 @@
 				"M_MAGNET",
 				"D_MATCH",
 				"D_OFFLINE",
+				"D_CID",
 				"D_VERIFY",
-				"D_UPIMG",
+				// "D_UPIMG",
 				"D_RENAME",
-				"D_MOVE",
+				// "D_MOVE",
 			],
 			details: [
 				{
@@ -555,37 +557,45 @@
 					name: "磁力排序",
 					key: "M_SORT",
 					type: "switch",
-					info: "综合排序，<code>字幕</code> ＞ <code>大小</code> ＞ <code>日期</code>",
+					info: "综合排序 <code>字幕</code> ＞ <code>大小</code> ＞ <code>日期</code>",
 					defaultVal: true,
 				},
 				{
 					name: "磁力搜索",
 					key: "M_MAGNET",
 					type: "switch",
-					info: `获取自 <a href="https://sukebei.nyaa.si/" class="link-primary">Sukebei</a>, <a href="https://btsow.rest/" class="link-primary">BTSOW</a>`,
+					info: `自动去重，获取自 <a href="https://sukebei.nyaa.si/" class="link-primary">Sukebei</a>, <a href="https://btsow.rest/" class="link-primary">BTSOW</a>`,
 					defaultVal: true,
 				},
 				{
 					name: "资源匹配",
 					key: "D_MATCH",
 					type: "switch",
-					info: "查询网盘是否已有资源",
+					info: "列表页 & 详情页 查询网盘是否已有资源",
 					defaultVal: true,
 				},
 				{
-					name: "一键离线",
+					name: "一键自动离线",
 					key: "D_OFFLINE",
 					type: "switch",
-					info: "开启/关闭功能按钮",
+					info: "脚本自动执行",
 					defaultVal: true,
 				},
 				{
-					name: "离线结果验证",
+					name: "离线下载目录",
+					key: "D_CID",
+					type: "input",
+					info: "自定义离线目录 cid，默认动态参数：<code>${云下载}</code>",
+					placeholder: "填写以提升『一键离线』效率",
+					defaultVal: "${云下载}",
+				},
+				{
+					name: "离线结果验证延迟",
 					key: "D_VERIFY",
 					type: "number",
-					info: "『一键离线』延迟查询离线结果是否成功，设置延迟秒数 (2.5)",
-					placeholder: "支持一位小数 ≥ 1",
-					defaultVal: 2.5,
+					info: "『一键离线』延迟查询离线结果是否成功，设置延迟秒数。0 不验证 (默认 3)",
+					placeholder: "仅支持一位小数 ≥ 1.0",
+					defaultVal: 3,
 				},
 				{
 					name: "上传封面",
@@ -602,14 +612,14 @@
 					placeholder: "不要填写后缀，可能导致资源不可用",
 					defaultVal: "${番号} - ${标题}",
 				},
-				{
-					name: "移动目录",
-					key: "D_MOVE",
-					type: "input",
-					info: "『离线结果验证』成功自动移动资源至设置目录",
-					placeholder: "对应网盘目录 cid",
-					defaultVal: "",
-				},
+				// {
+				// 	name: "移动目录",
+				// 	key: "D_MOVE",
+				// 	type: "input",
+				// 	info: "『离线结果验证』成功自动移动资源至设置目录",
+				// 	placeholder: "对应网盘目录 cid",
+				// 	defaultVal: "",
+				// },
 			],
 		};
 
@@ -1082,6 +1092,7 @@
 				GM_openInTab(target.href, { setParent: true, active: false });
 			});
 		};
+
 		// L_MIT
 		listMovieImgType = (node, condition) => {
 			const img = node.querySelector("img");
@@ -1143,6 +1154,7 @@
 
 			return infScroll;
 		};
+
 		// M_IMG
 		movieImg = async ({ code }, start) => {
 			if (!this.M_IMG) return;
@@ -1224,6 +1236,7 @@
 			}
 			return magnet;
 		};
+
 		// D_MATCH
 		driveMatch = () => {};
 		// D_OFFLINE
@@ -1490,9 +1503,9 @@
 					item.removeAttribute("style");
 					item.setAttribute("class", "item");
 					this._listMovieImgType(item);
-					this.modifyAvatarBox(item);
-					this.modifyMovieBox(item);
 				}
+				this.modifyAvatarBox(container);
+				this.modifyMovieBox(container);
 				return items;
 			},
 			_listMovieImgType(node) {
