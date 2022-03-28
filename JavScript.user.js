@@ -1565,6 +1565,14 @@
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
+				_waterfall.addEventListener("click", e => {
+					const { target } = e;
+					if (!target.classList.contains("x-player")) return;
+					e.preventDefault();
+					e.stopPropagation();
+					GM_openInTab(`${this.pickCodePrefix}${target.dataset.code}`, { setParent: true, active: true });
+				});
+
 				const infScroll = this.listScroll(_waterfall, ".item", "#next");
 				if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
 				infScroll?.on("request", async (_, fetchPromise) => {
@@ -1627,18 +1635,11 @@
 					const res = await this.driveMatch({ code, res: "list" });
 					if (!res?.length) continue;
 
-					item.querySelector(".x-title").classList.add("x-matched");
 					const frame = item.querySelector(".photo-frame");
 					frame.classList.add("x-player");
 					frame.setAttribute("title", "点击播放");
-					frame.addEventListener("click", e => {
-						e.preventDefault();
-						e.stopPropagation();
-						GM_openInTab(`${this.pickCodePrefix}${res[0].pickCode}`, {
-							setParent: true,
-							active: true,
-						});
-					});
+					frame.setAttribute("data-code", res[0].pickCode);
+					item.querySelector(".x-title").classList.add("x-matched");
 				}
 			},
 		};
