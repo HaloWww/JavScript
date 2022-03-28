@@ -162,6 +162,7 @@
 				?.toFixed(2) ?? 0
 		);
 	};
+	const unique = (arr, key) => Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
 
 	class Store {
 		static init() {
@@ -2107,7 +2108,10 @@
 				};
 				if (this.magnets) {
 					sortStart = null;
-					magnets = [...this.magnets, ...magnets];
+					magnets = [...this.magnets, ...magnets].map(magnet => {
+						return { ...magnet, link: magnet.link.toLowerCase() };
+					});
+					magnets = unique(magnets, "link");
 				}
 				magnets = this.movieSort(magnets, sortStart);
 				this.magnets = magnets;
