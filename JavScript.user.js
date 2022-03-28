@@ -207,18 +207,32 @@
 		// 	);
 		// 	return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
 		// }
-		static async movieTitle(sentence) {
-			const st = encodeURIComponent(sentence.trim());
-			const data = {
-				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1642125176704,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
-			};
-			const res = await request(
-				"https://www.google.com/async/translate?vet=12ahUKEwi03Jv2kLD1AhWRI0QIHe_TDKAQqDh6BAgCECY..i&ei=ZtfgYbSRO5HHkPIP76ezgAo&yv=3",
-				data,
-				"POST",
-				{ responseType: "" }
+		static async movieImg(code) {
+			code = code.toUpperCase();
+
+			const [blogJav, javStore] = await Promise.all([
+				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
+				request(`https://javstore.net/search/${code}.html`),
+			]);
+
+			const [bjRes, jsRes] = await Promise.all([
+				request(
+					`http://webcache.googleusercontent.com/search?q=cache:${
+						blogJav?.querySelector("#rso .g .yuRUbf a")?.href
+					}`
+				),
+				request(javStore?.querySelector("#content_news li a")?.href),
+			]);
+
+			return (
+				bjRes
+					?.querySelector("#page .entry-content a img")
+					?.getAttribute("data-lazy-src")
+					.replace("//t", "//img")
+					.replace("thumbs", "images") ||
+				jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") ||
+				""
 			);
-			return res?.querySelector("#tw-answ-target-text").textContent ?? "";
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
@@ -264,32 +278,87 @@
 				""
 			);
 		}
-		static async movieImg(code) {
-			code = code.toUpperCase();
+		static async moviePlayer(code) {
+			const codeReg = new RegExp(code, "gi");
 
-			const [blogJav, javStore] = await Promise.all([
-				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
-				request(`https://javstore.net/search/${code}.html`),
-			]);
+			const matchList = [
+				{
+					site: "Netflav",
+					host: "https://netflav.com/",
+					search: "search?type=title&keyword=%s",
+					selectors: ".grid_root .grid_cell",
+					filter: { name: e => e?.querySelector(".grid_title").textContent },
+				},
+				{
+					site: "BestJavPorn",
+					host: "https://www2.bestjavporn.com/",
+					search: "search/%s/",
+					selectors: "#main article",
+					filter: {
+						name: e => e?.querySelector("a").title,
+						zh: e => /中文/g.test(e?.querySelector(".hd-video")?.textContent ?? ""),
+					},
+				},
+				{
+					site: "JavHHH",
+					host: "https://javhhh.com/",
+					search: "v/?wd=%s",
+					selectors: "#wrapper .typelist .i-container",
+					filter: { name: e => e?.querySelector("img.img-responsive").title },
+				},
+				{
+					site: "Avgle",
+					host: "https://avgle.com/",
+					search: "search/videos?search_query=%s&search_type=videos",
+					selectors: ".row .well.well-sm",
+					filter: { name: e => e?.querySelector(".video-title")?.textContent },
+				},
+			];
 
-			const [bjRes, jsRes] = await Promise.all([
-				request(
-					`http://webcache.googleusercontent.com/search?q=cache:${
-						blogJav?.querySelector("#rso .g .yuRUbf a")?.href
-					}`
-				),
-				request(javStore?.querySelector("#content_news li a")?.href),
-			]);
-
-			return (
-				bjRes
-					?.querySelector("#page .entry-content a img")
-					?.getAttribute("data-lazy-src")
-					.replace("//t", "//img")
-					.replace("thumbs", "images") ||
-				jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") ||
-				""
+			const matched = await Promise.all(
+				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
+
+			const players = [];
+			for (let index = 0; index < matchList.length; index++) {
+				let node = matched[index];
+				if (!node) continue;
+
+				const { selectors, site, filter, host } = matchList[index];
+				node = node?.querySelectorAll(selectors);
+				if (!node?.length) continue;
+
+				for (const item of node) {
+					const player = { from: site };
+					Object.keys(filter).forEach(key => {
+						player[key] = filter[key](item) ?? "";
+					});
+					const { name } = player;
+					let link = item?.querySelector("a")?.getAttribute("href");
+					if (!name || !name.match(codeReg)?.length || !link) continue;
+					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
+					if (!("zh" in player)) player.zh = /中文/g.test(name);
+					if (player.zh) {
+						players.unshift(player);
+						break;
+					}
+					players.push(player);
+				}
+			}
+			return players.length ? players[0].link : "";
+		}
+		static async movieTitle(sentence) {
+			const st = encodeURIComponent(sentence.trim());
+			const data = {
+				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1642125176704,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
+			};
+			const res = await request(
+				"https://www.google.com/async/translate?vet=12ahUKEwi03Jv2kLD1AhWRI0QIHe_TDKAQqDh6BAgCECY..i&ei=ZtfgYbSRO5HHkPIP76ezgAo&yv=3",
+				data,
+				"POST",
+				{ responseType: "" }
+			);
+			return res?.querySelector("#tw-answ-target-text").textContent ?? "";
 		}
 		static async movieStar(code) {
 			code = code.toUpperCase();
@@ -364,87 +433,13 @@
 			}
 			return magnets;
 		}
-		static async moviePlayer(code) {
-			const codeReg = new RegExp(code, "gi");
-
-			const matchList = [
-				{
-					site: "Netflav",
-					host: "https://netflav.com/",
-					search: "search?type=title&keyword=%s",
-					selectors: ".grid_root .grid_cell",
-					filter: {
-						name: e => e?.querySelector(".grid_title").textContent,
-					},
-				},
-				{
-					site: "BestJavPorn",
-					host: "https://www2.bestjavporn.com/",
-					search: "search/%s/",
-					selectors: "#main article",
-					filter: {
-						name: e => e?.querySelector("a").title,
-						zh: e => /中文/g.test(e?.querySelector(".hd-video")?.textContent ?? ""),
-					},
-				},
-				{
-					site: "JavHHH",
-					host: "https://javhhh.com/",
-					search: "v/?wd=%s",
-					selectors: "#wrapper .typelist .i-container",
-					filter: {
-						name: e => e?.querySelector("img.img-responsive").title,
-					},
-				},
-				{
-					site: "Avgle",
-					host: "https://avgle.com/",
-					search: "search/videos?search_query=%s&search_type=videos",
-					selectors: ".row .well.well-sm",
-					filter: {
-						name: e => e?.querySelector(".video-title")?.textContent,
-					},
-				},
-			];
-
-			const matched = await Promise.all(
-				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
-			);
-
-			const players = [];
-			for (let index = 0; index < matchList.length; index++) {
-				let node = matched[index];
-				if (!node) continue;
-
-				const { selectors, site, filter, host } = matchList[index];
-				node = node?.querySelectorAll(selectors);
-				if (!node?.length) continue;
-
-				for (const item of node) {
-					const player = { from: site };
-					Object.keys(filter).forEach(key => {
-						player[key] = filter[key](item) ?? "";
-					});
-					const { name } = player;
-					let link = item?.querySelector("a")?.getAttribute("href");
-					if (!name || !name.match(codeReg)?.length || !link) continue;
-					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
-					if (!("zh" in player)) player.zh = /中文/g.test(name);
-					if (player.zh) {
-						players.unshift(player);
-						break;
-					}
-					players.push(player);
-				}
-			}
-			return players.length ? players[0].link : "";
-		}
 	}
 	class Common {
 		docStart = () => {};
 		contentLoaded = () => {};
 		load = () => {};
 
+		route = null;
 		menus = {
 			tabs: [
 				{ title: "全站", key: "global", prefix: "G" },
@@ -456,14 +451,14 @@
 				"G_DARK",
 				"G_SEARCH",
 				"G_CLICK",
-				"L_SCROLL",
 				"L_MIT",
 				"L_MTL",
-				"M_TITLE",
-				"M_VIDEO",
+				"L_SCROLL",
 				"M_IMG",
-				"M_STAR",
+				"M_VIDEO",
 				"M_PLAYER",
+				"M_TITLE",
+				"M_STAR",
 				"M_SORT",
 				"M_MAGNET",
 				"D_MATCH",
@@ -474,6 +469,14 @@
 				"D_MOVE",
 			],
 			details: [
+				{
+					name: "暗黑模式",
+					key: "G_DARK",
+					type: "switch",
+					info: "常用页面暗黑模式",
+					defaultVal: true,
+					hotkey: "d",
+				},
 				{
 					name: "快捷搜索",
 					key: "G_SEARCH",
@@ -491,21 +494,6 @@
 					hotkey: "c",
 				},
 				{
-					name: "暗黑模式",
-					key: "G_DARK",
-					type: "switch",
-					info: "常用页面暗黑模式",
-					defaultVal: true,
-					hotkey: "d",
-				},
-				{
-					name: "滚动加载",
-					key: "L_SCROLL",
-					type: "switch",
-					info: "滚动加载下一页",
-					defaultVal: true,
-				},
-				{
 					name: "预览图替换",
 					key: "L_MIT",
 					type: "switch",
@@ -516,57 +504,64 @@
 					name: "标题最大行",
 					key: "L_MTL",
 					type: "number",
-					info: "影片标题最大显示行数，超出省略。0 不限制 (1)",
+					info: "影片标题最大显示行数，超出省略。0 不限制 (默认 1)",
 					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 1,
 				},
 				{
-					name: "标题机翻",
-					key: "M_TITLE",
+					name: "滚动加载",
+					key: "L_SCROLL",
 					type: "switch",
-					info: "鼠标悬停标题处查看，翻自 Google",
-					defaultVal: true,
-				},
-				{
-					name: "演员匹配",
-					key: "M_STAR",
-					type: "switch",
-					info: "如无，获取自 JavDB",
+					info: "滚动自动加载下一页",
 					defaultVal: true,
 				},
 				{
 					name: "预览大图",
 					key: "M_IMG",
 					type: "switch",
-					info: "获取自 JavStore, jpBukkake",
+					info: `获取自 <a href="https://blogjav.net/" class="link-primary">BlogJav</a>, <a href="https://javstore.net/" class="link-primary">JavStore</a>`,
 					defaultVal: true,
 				},
 				{
 					name: "预览视频",
 					key: "M_VIDEO",
 					type: "switch",
-					info: "获取自 R18, xrmoo",
+					info: `获取自 <a href="https://www.r18.com/" class="link-primary">R18</a>, <a href="http://dmm.xrmoo.com/" class="link-primary">闲人吧</a>`,
 					defaultVal: true,
 				},
 				{
 					name: "在线播放",
 					key: "M_PLAYER",
 					type: "switch",
-					info: "获取自 Netflav, BestJavPorn, JavHHH, Avgle",
+					info: `获取自 <a href="https://netflav.com/" class="link-primary">Netflav</a>, <a href="https://www2.bestjavporn.com/" class="link-primary">BestJavPorn</a>, <a href="https://javhhh.com/" class="link-primary">JavHHH</a>, <a href="https://avgle.com/" class="link-primary">Avgle</a>`,
+					defaultVal: true,
+				},
+				{
+					name: "标题机翻",
+					key: "M_TITLE",
+					type: "switch",
+					info: `翻自 <a href="https://google.com/" class="link-primary">Google</a>`,
+					defaultVal: true,
+				},
+				{
+					name: "演员匹配",
+					key: "M_STAR",
+					type: "switch",
+					info: `如无，获取自 <a href="https://javdb.com/" class="link-primary">JavDB</a>`,
 					defaultVal: true,
 				},
 				{
 					name: "磁力排序",
 					key: "M_SORT",
 					type: "switch",
-					info: "综合排序，字幕 ＞ 大小 ＞ 日期",
+					info: "综合排序，<code>字幕</code> ＞ <code>大小</code> ＞ <code>日期</code>",
 					defaultVal: true,
 				},
 				{
 					name: "磁力搜索",
 					key: "M_MAGNET",
 					type: "switch",
-					info: "获取自 Sukebei, BTGG, BTSOW",
+					info: `获取自 <a href="https://sukebei.nyaa.si/" class="link-primary">Sukebei</a>, <a href="https://btsow.rest/" class="link-primary">BTSOW</a>`,
 					defaultVal: true,
 				},
 				{
@@ -619,20 +614,11 @@
 
 		init() {
 			Store.init();
+			this.route = Object.keys(this.routes).find(key => this.routes[key].test(location.pathname));
 			this.createMenu();
-			const tag = Object.keys(this.routes).find(key => this.routes[key].test(location.pathname));
-			return { ...this, ...this[tag] };
+			return { ...this, ...this[this.route] };
 		}
 		createMenu() {
-			let { tabs, commands, details } = this.menus;
-			const exclude = (this.excludeMenu ?? []).join("|");
-			if (exclude) {
-				const regex = new RegExp(`^[^(${exclude})]`);
-				commands = commands.filter(command => regex.test(command));
-			}
-			if (!commands.length) return;
-			const domain = Matched.domain;
-
 			GM_addStyle(`
             .x-scrollbar-hide ::-webkit-scrollbar {
                 display: none;
@@ -650,38 +636,60 @@
                 backdrop-filter: blur(50px);
                 padding: 0;
                 margin: 0;
+                box-sizing: border-box;
 		    }
+            iframe.x-mask {
+                backdrop-filter: none;
+            }
             .x-show {
                 display: block !important;
             }
             `);
+
+			let { tabs, commands, details } = this.menus;
+
+			const exclude = this.excludeMenu;
+			if (exclude?.length) {
+				const regex = new RegExp(`^(?!${exclude.join("|")})`);
+				commands = commands.filter(command => regex.test(command));
+				tabs = tabs.filter(tab => commands.find(command => command.startsWith(tab.prefix)));
+			}
+			if (!commands.length) return;
+
+			const domain = Matched.domain;
+			const active = tabs.find(tab => tab.key === this.route) ?? tabs[0];
+
 			let tabStr = "";
 			let panelStr = "";
 			for (let index = 0; index < tabs.length; index++) {
 				const { title, key, prefix } = tabs[index];
+
 				const curCommands = commands.filter(command => command.startsWith(prefix));
 				const curLen = curCommands.length;
 				if (!curLen) continue;
+
+				const isActive = key === active.key;
 				tabStr += `
                     <a
-                        class="nav-link${index ? "" : " active"}"
+                        class="nav-link${isActive ? " active" : ""}"
                         id="${key}-tab"
+                        aria-controls="${key}"
+                        aria-selected="${isActive}"
                         data-bs-toggle="pill"
                         href="#${key}"
                         role="tab"
-                        aria-controls="${key}"
-                        aria-selected="${index ? "false" : "true"}"
                     >
                         ${title}设置
                     </a>`;
 				panelStr += `
                     <div
-                        class="tab-pane fade${index ? "" : " show active"}"
+                        class="tab-pane fade${isActive ? " show active" : ""}"
                         id="${key}"
-                        role="tabpanel"
                         aria-labelledby="${key}-tab"
+                        role="tabpanel"
                     >
                     `;
+
 				for (let curIdx = 0; curIdx < curLen; curIdx++) {
 					const {
 						name,
@@ -714,8 +722,8 @@
 					                class="form-check-input"
 					                id="${curKey}"
 					                aria-describedby="${curKey}_Help"
-                                    ${val ? "checked" : ""}
-                                    name="${curKey}"
+				                    ${val ? "checked" : ""}
+				                    name="${curKey}"
 					            >
 					            <label class="form-check-label" for="${curKey}">${name}</label>
 					        </div>
@@ -724,22 +732,24 @@
 						panelStr += `
 					        <label class="form-label" for="${curKey}">${name}</label>
 					        <input
-                                type="${type}"
-                                class="form-control"
-                                id="${curKey}"
-                                aria-describedby="${curKey}_Help"
-                                value="${val ?? ""}"
-                                placeholder="${placeholder}"
-                                name="${curKey}"
-                            >
+				                type="${type}"
+				                class="form-control"
+				                id="${curKey}"
+				                aria-describedby="${curKey}_Help"
+				                value="${val ?? ""}"
+				                placeholder="${placeholder}"
+				                name="${curKey}"
+				            >
 					        `;
 					}
 					if (info) panelStr += `<div id="${curKey}_Help" class="form-text">${info}</div>`;
 					panelStr += `</div>`;
 				}
+
 				panelStr += `</div>`;
 			}
 
+			if (!tabStr || !panelStr) return;
 			DOC.addEventListener("DOMContentLoaded", () => {
 				DOC.body.insertAdjacentHTML(
 					"beforeend",
@@ -752,16 +762,16 @@
                     ></iframe>`
 				);
 				const iframe = DOC.querySelector("#control-panel");
-				iframe.style.cssText += "backdrop-filter:none";
-
 				const _DOC = iframe.contentWindow.document;
+
 				_DOC.querySelector("head").insertAdjacentHTML(
 					"beforeend",
 					`<link
                         href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
                         rel="stylesheet"
                     >
-                    <style>${this.style}</style>`
+                    <style>${this.style}</style>
+                    <base target="_blank">`
 				);
 				const body = _DOC.querySelector("body");
 				body.classList.add("bg-transparent");
@@ -873,12 +883,13 @@
 				const openModal = () => {
 					if (iframe.classList.contains("x-show")) return;
 					toggleIframe();
-					_DOC.getElementById("openModal").click();
+					_DOC.querySelector("#openModal").click();
 				};
 				GM_registerMenuCommand("控制面板", openModal, "s");
-				_DOC.getElementById("controlPanel").addEventListener("hidden.bs.modal", toggleIframe);
+				_DOC.querySelector("#controlPanel").addEventListener("hidden.bs.modal", toggleIframe);
 			});
 		}
+
 		// styles
 		variables = `
         :root {
@@ -1012,6 +1023,7 @@
             filter: none !important;
         }
         `;
+
 		// G_DARK
 		globalDark = (css = "", dark = "") => {
 			if (this.G_DARK) css += dark;
@@ -1069,11 +1081,6 @@
 				GM_openInTab(target.href, { setParent: true, active: false });
 			});
 		};
-		// L_MTL
-		listMovieTitleLine = () => {
-			const num = parseInt(this.L_MTL ?? 0, 10);
-			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
-		};
 		// L_MIT
 		listMovieImgType = (node, condition) => {
 			const img = node.querySelector("img");
@@ -1082,6 +1089,11 @@
 			img.setAttribute("loading", "lazy");
 			const { src = "" } = img;
 			img.src = condition.find(({ regex }) => regex.test(src))?.replace(src);
+		};
+		// L_MTL
+		listMovieTitleLine = () => {
+			const num = parseInt(this.L_MTL ?? 0, 10);
+			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
 		};
 		// L_SCROLL
 		listScroll = (container, itemSelector, path) => {
@@ -1130,16 +1142,16 @@
 
 			return infScroll;
 		};
-		// M_TITLE
-		movieTitle = async ({ code, title }, start) => {
-			if (!this.M_TITLE) return;
+		// M_IMG
+		movieImg = async ({ code }, start) => {
+			if (!this.M_IMG) return;
 			start && start();
-			let transTitle = Store.getDetail(code)?.transTitle;
-			if (!transTitle) {
-				transTitle = await Apis.movieTitle(title);
-				if (transTitle) Store.upDetail(code, { transTitle });
+			let img = Store.getDetail(code)?.img;
+			if (!img) {
+				img = await Apis.movieImg(code);
+				if (img) Store.upDetail(code, { img });
 			}
-			return transTitle;
+			return img;
 		};
 		// M_VIDEO
 		movieVideo = async ({ code, studio }, start) => {
@@ -1152,16 +1164,27 @@
 			}
 			return video;
 		};
-		// M_IMG
-		movieImg = async ({ code }, start) => {
-			if (!this.M_IMG) return;
+		// M_PLAYER
+		moviePlayer = async ({ code }, start) => {
+			if (!this.M_PLAYER) return;
 			start && start();
-			let img = Store.getDetail(code)?.img;
-			if (!img) {
-				img = await Apis.movieImg(code);
-				if (img) Store.upDetail(code, { img });
+			let player = Store.getDetail(code)?.player;
+			if (!player) {
+				player = await Apis.moviePlayer(code);
+				if (player) Store.upDetail(code, { player });
 			}
-			return img;
+			return player;
+		};
+		// M_TITLE
+		movieTitle = async ({ code, title }, start) => {
+			if (!this.M_TITLE) return;
+			start && start();
+			let transTitle = Store.getDetail(code)?.transTitle;
+			if (!transTitle) {
+				transTitle = await Apis.movieTitle(title);
+				if (transTitle) Store.upDetail(code, { transTitle });
+			}
+			return transTitle;
 		};
 		// M_STAR
 		movieStar = async ({ code, star: hasStar }, start) => {
@@ -1173,17 +1196,6 @@
 				if (star?.length) Store.upDetail(code, { star });
 			}
 			return star;
-		};
-		// M_PLAYER
-		moviePlayer = async ({ code }, start) => {
-			if (!this.M_PLAYER) return;
-			start && start();
-			let player = Store.getDetail(code)?.player;
-			if (!player) {
-				player = await Apis.moviePlayer(code);
-				if (player) Store.upDetail(code, { player });
-			}
-			return player;
 		};
 		// M_SORT
 		movieSort = (magnets, start) => {
@@ -1229,14 +1241,13 @@
 			super();
 			return super.init();
 		}
-		excludeMenu = ["D"];
 		routes = {
-			waterfall:
-				/^\/((uncensored|uncensored\/)?(page\/\d+)?$)|((uncensored\/)?((search|searchstar|actresses|genre|star|studio|label|series|director|member)+\/)|actresses(\/\d+)?)+/i,
+			list: /^\/((uncensored|uncensored\/)?(page\/\d+)?$)|((uncensored\/)?((search|searchstar|actresses|genre|star|studio|label|series|director|member)+\/)|actresses(\/\d+)?)+/i,
 			genre: /^\/(uncensored\/)?genre$/i,
 			forum: /^\/forum\//i,
-			details: /^\/[\w]+(-|_)?[\d]*.*$/i,
+			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
+		// excludeMenu = ["D"];
 		// styles
 		_style = `
         .ad-box {
@@ -1364,7 +1375,7 @@
 			}
 		};
 		// modules
-		waterfall = {
+		list = {
 			docStart() {
 				const style = `
                 #waterfall {
@@ -1703,7 +1714,7 @@
 				this._globalSearch();
 			},
 		};
-		details = {
+		movie = {
 			params: {},
 			magnets: null,
 			docStart() {
