@@ -402,7 +402,7 @@
 					});
 					magnet.bytes = transToBytes(magnet.size);
 					magnet.zh = /中文/g.test(magnet.name);
-					magnet.link = magnet.link.split("&")[0];
+					magnet.link = magnet.link.split("&")[0].toLowerCase();
 					const { href } = magnet;
 					if (href && !href.includes("//")) magnet.href = `${host}${href.replace(/^\//, "")}`;
 					magnets.push(magnet);
@@ -434,6 +434,32 @@
 			);
 			console.log(res);
 			// return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
+		}
+		static async searchFile(search_value) {
+			const res = await request(
+				"https://webapi.115.com/files/search",
+				{
+					search_value,
+					offset: 0,
+					limit: 10000,
+					date: "",
+					aid: 1,
+					cid: 0,
+					pick_code: "",
+					type: 4,
+					source: "",
+					format: "json",
+					o: "user_ptime",
+					asc: 0,
+					star: "",
+					suffix: "",
+				},
+				"GET",
+				{ responseType: "json" }
+			);
+			return (res?.data ?? []).map(({ fid, cid, n, pc, t, te, tp, play_long }) => {
+				return { fid, cid, n, pc, t, te, tp, play_long };
+			});
 		}
 	}
 	class Common {
@@ -1233,14 +1259,16 @@
 			let magnet = Store.getDetail(code)?.magnet;
 			if (!magnet?.length) {
 				magnet = await Apis.movieMagnet(code);
+				magnet = unique(magnet, "link");
 				if (magnet?.length) Store.upDetail(code, { magnet });
 			}
 			return magnet;
 		};
 
 		// D_MATCH
-		driveMatch = async (code, res) => {
+		driveMatch = async ({ code, res }, start) => {
 			if (!this.D_MATCH) return;
+			start && start();
 			const prefix = code.split(/(-|_)/g)[0];
 
 			if (res === "list") {
@@ -1254,7 +1282,7 @@
 						RESOURCE.push(item);
 						GM_setValue("RESOURCE", RESOURCE);
 					}
-					res = await this.driveMatch(code, item.res);
+					res = await this.driveMatch({ code, ...item });
 				}
 			} else {
 				if (!res) res = await Apis.searchFile(prefix);
@@ -1287,6 +1315,7 @@
 				}
 				Store.upDetail(code, { res });
 			}
+
 			return res;
 		};
 		// D_OFFLINE
@@ -1526,7 +1555,7 @@
 				const items = this.modifyListItem(_waterfall);
 
 				const itemsLen = items?.length ?? 0;
-				const isStarDetail = /^\/star\/\w+/i.test(location.pathname);
+				const isStarDetail = /^\/(uncensored\/)?star\/\w+/i.test(location.pathname);
 				if (itemsLen) {
 					_waterfall.innerHTML = "";
 					for (let index = 0; index < itemsLen; index++) {
@@ -1595,7 +1624,7 @@
 					const code = item.querySelector("date")?.textContent?.trim();
 					if (!code) continue;
 
-					const res = await this.driveMatch(code, "list");
+					const res = await this.driveMatch({ code, res: "list" });
 					if (!res?.length) continue;
 
 					item.querySelector(".x-title").classList.add("x-matched");
@@ -1842,6 +1871,9 @@
                     aspect-ratio: var(--x-cover-ratio);
                     opacity: 0;
                 }
+                .info p {
+                    line-height: 22px !important;
+                }
                 .star-box img {
 				    width: 100% !important;
 				    height: auto !important;
@@ -1900,6 +1932,10 @@
                 }
                 .btn-group button {
                     border-width: .5px !important;
+                }
+                .x-res .x-line,
+                .x-res a {
+                    color: #CC0000 !important;
                 }
                 .x-table {
                     margin: 0 !important;
@@ -1978,6 +2014,8 @@
 				this._movieTitle();
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
 				this._movieStar();
+
+				this._driveMatch();
 
 				const tableObs = new MutationObserver((_, obs) => {
 					obs.disconnect();
@@ -2120,6 +2158,25 @@
 							""
 					  );
 			},
+			async _driveMatch() {
+				const start = () => {
+					DOC.querySelector(".info").insertAdjacentHTML(
+						"beforeend",
+						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div>`
+					);
+				};
+
+				const res = await this.driveMatch(this.params, start);
+				const resNode = DOC.querySelector(".x-res");
+				if (!resNode) return;
+				resNode.innerHTML = !res?.length
+					? "暂无网盘资源"
+					: res.reduce(
+							(acc, { pickCode, date, name }) =>
+								`${acc}<div class="x-line"><a href="${this.pickCodePrefix}${pickCode}" target="_blank" title="${date}/${name}">${name}</a></div>`,
+							""
+					  );
+			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
 				table.parentElement.innerHTML = `
@@ -2165,7 +2222,7 @@
 					if (!_link || !_size || !date) continue;
 					magnets.push({
 						name: _link.textContent.trim(),
-						link: _link.href.split("&")[0],
+						link: _link.href.split("&")[0].toLowerCase(),
 						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
 						size: _size,
 						bytes: transToBytes(_size),
@@ -2195,10 +2252,7 @@
 				};
 				if (this.magnets) {
 					sortStart = null;
-					magnets = [...this.magnets, ...magnets].map(magnet => {
-						return { ...magnet, link: magnet.link.toLowerCase() };
-					});
-					magnets = unique(magnets, "link");
+					magnets = unique([...this.magnets, ...magnets], "link");
 				}
 				magnets = this.movieSort(magnets, sortStart);
 				this.magnets = magnets;
