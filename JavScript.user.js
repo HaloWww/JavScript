@@ -162,7 +162,15 @@
 				?.toFixed(2) ?? 0
 		);
 	};
-	const unique = (arr, key) => Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
+	const unique = (arr, key) => {
+		if (!key) return Array.from(new Set(arr));
+
+		arr = arr.map(item => {
+			item[key] = item[key]?.toLowerCase();
+			return item;
+		});
+		return Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
+	};
 
 	class Store {
 		static init() {
@@ -256,6 +264,7 @@
 			);
 		}
 		static async moviePlayer(code) {
+			code = code.toUpperCase();
 			const codeReg = new RegExp(code, "gi");
 
 			const matchList = [
@@ -353,6 +362,7 @@
 				.map(item => item.replace("♀", "").trim());
 		}
 		static async movieMagnet(code) {
+			code = code.toUpperCase();
 			const matchList = [
 				{
 					site: "Sukebei",
@@ -402,7 +412,7 @@
 					});
 					magnet.bytes = transToBytes(magnet.size);
 					magnet.zh = /中文/g.test(magnet.name);
-					magnet.link = magnet.link.split("&")[0].toLowerCase();
+					magnet.link = magnet.link.split("&")[0];
 					const { href } = magnet;
 					if (href && !href.includes("//")) magnet.href = `${host}${href.replace(/^\//, "")}`;
 					magnets.push(magnet);
@@ -1258,8 +1268,7 @@
 			start && start();
 			let magnet = Store.getDetail(code)?.magnet;
 			if (!magnet?.length) {
-				magnet = await Apis.movieMagnet(code);
-				magnet = unique(magnet, "link");
+				magnet = unique(await Apis.movieMagnet(code), "link");
 				if (magnet?.length) Store.upDetail(code, { magnet });
 			}
 			return magnet;
@@ -1273,7 +1282,6 @@
 
 			if (res === "list") {
 				res = Store.getDetail(code)?.res;
-
 				if (!res?.length) {
 					const RESOURCE = GM_getValue("RESOURCE", []);
 					let item = RESOURCE.find(item => item.prefix === prefix);
@@ -1282,40 +1290,36 @@
 						RESOURCE.push(item);
 						GM_setValue("RESOURCE", RESOURCE);
 					}
-					res = await this.driveMatch({ code, ...item });
+					res = await this.driveMatch({ ...item, code });
 				}
 			} else {
 				if (!res) res = await Apis.searchFile(prefix);
-
 				if (res?.length) {
-					const codes = [
-						...new Set([
-							code,
-							code.replace(/-/g, ""),
-							code.replace(/-/g, "."),
-							code.replace(/-0/g, "."),
-							code.replace(/-/g, "-0"),
-							code.replace(/-/g, "0"),
-							code.replace(/-/g, "00"),
-							code.replace(/-/g, "_"),
-							code.replace(/-/g, "_0"),
-							code.replace(/-0/g, ""),
-							code.replace(/-0/g, "-"),
-							code.replace(/-0/g, "00"),
-						]),
-					];
-
-					const codeReg = new RegExp(`(${codes.join("|").replace(/\./g, "\\.")})+`, "gi");
+					let regex = unique([
+						code,
+						code.replace(/-/g, ""),
+						code.replace(/-/g, "."),
+						code.replace(/-/g, "0"),
+						code.replace(/-/g, "_"),
+						code.replace(/-/g, "_0"),
+						code.replace(/-/g, "-0"),
+						code.replace(/-/g, "00"),
+						code.replace(/-0/g, "."),
+						code.replace(/-0/g, ""),
+						code.replace(/-0/g, "-"),
+						code.replace(/-0/g, "00"),
+					]);
+					regex = new RegExp(`(${regex.join("|").replace(/\./g, "\\.")})+`, "gi");
+					// console.log(regex, res);
 
 					res = res
-						.filter(({ n, play_long }) => n.match(codeReg) && play_long)
+						.filter(({ n, play_long }) => n.match(regex) && play_long)
 						.map(({ n: name, pc: pickCode, fid, cid, te, tp, t: date }) => {
 							return { name, pickCode, fid, cid, timestamp: Math.max(te, tp), date };
 						});
+					if (res.length) Store.upDetail(code, { res });
 				}
-				Store.upDetail(code, { res });
 			}
-
 			return res;
 		};
 		// D_OFFLINE
@@ -1554,7 +1558,7 @@
 				_waterfall.setAttribute("class", "x-show");
 				const items = this.modifyListItem(_waterfall);
 
-				const itemsLen = items?.length ?? 0;
+				const itemsLen = items?.length;
 				const isStarDetail = /^\/(uncensored\/)?star\/\w+/i.test(location.pathname);
 				if (itemsLen) {
 					_waterfall.innerHTML = "";
@@ -1562,16 +1566,16 @@
 						if (isStarDetail && !index) continue;
 						_waterfall.appendChild(items[index]);
 					}
+
+					_waterfall.addEventListener("click", e => {
+						const { target } = e;
+						if (!target.classList.contains("x-player")) return;
+						e.preventDefault();
+						e.stopPropagation();
+						GM_openInTab(`${this.pickCodePrefix}${target.dataset.code}`, { setParent: true, active: true });
+					});
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
-
-				_waterfall.addEventListener("click", e => {
-					const { target } = e;
-					if (!target.classList.contains("x-player")) return;
-					e.preventDefault();
-					e.stopPropagation();
-					GM_openInTab(`${this.pickCodePrefix}${target.dataset.code}`, { setParent: true, active: true });
-				});
 
 				const infScroll = this.listScroll(_waterfall, ".item", "#next");
 				if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
@@ -2223,7 +2227,7 @@
 					if (!_link || !_size || !date) continue;
 					magnets.push({
 						name: _link.textContent.trim(),
-						link: _link.href.split("&")[0].toLowerCase(),
+						link: _link.href.split("&")[0],
 						zh: !!link.querySelector("a.btn.btn-mini-new.btn-warning.disabled"),
 						size: _size,
 						bytes: transToBytes(_size),
