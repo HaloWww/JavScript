@@ -467,8 +467,8 @@
 				"GET",
 				{ responseType: "json" }
 			);
-			return (res?.data ?? []).map(({ fid, cid, n, pc, t, te, tp, play_long }) => {
-				return { fid, cid, n, pc, t, te, tp, play_long };
+			return (res?.data ?? []).map(({ cid, fid, n, pc, play_long, sha, t, te, tp }) => {
+				return { cid, fid, n, pc, play_long, sha, t, te, tp };
 			});
 		}
 	}
@@ -1278,7 +1278,8 @@
 		driveMatch = async ({ code, res }, start) => {
 			if (!this.D_MATCH) return;
 			start && start();
-			const prefix = code.split(/(-|_)/g)[0];
+			const codes = code.split(/-|_/).filter(Boolean);
+			const prefix = codes[0];
 
 			if (res === "list") {
 				res = Store.getDetail(code)?.res;
@@ -1295,27 +1296,11 @@
 			} else {
 				if (!res) res = await Apis.searchFile(prefix);
 				if (res?.length) {
-					let regex = unique([
-						code,
-						code.replace(/-/g, ""),
-						code.replace(/-/g, "."),
-						code.replace(/-/g, "0"),
-						code.replace(/-/g, "_"),
-						code.replace(/-/g, "_0"),
-						code.replace(/-/g, "-0"),
-						code.replace(/-/g, "00"),
-						code.replace(/-0/g, "."),
-						code.replace(/-0/g, ""),
-						code.replace(/-0/g, "-"),
-						code.replace(/-0/g, "00"),
-					]);
-					regex = new RegExp(`(${regex.join("|").replace(/\./g, "\\.")})+`, "gi");
-					// console.log(regex, res);
-
+					const regex = new RegExp(`${codes.join(".*")}`, "gi");
 					res = res
-						.filter(({ n, play_long }) => n.match(regex) && play_long)
-						.map(({ n: name, pc: pickCode, fid, cid, te, tp, t: date }) => {
-							return { name, pickCode, fid, cid, timestamp: Math.max(te, tp), date };
+						.filter(({ n, play_long }) => regex.test(n) && play_long)
+						.map(({ cid, fid, n: name, pc: pickCode, sha, t: date, te, tp }) => {
+							return { cid, fid, name, pickCode, sha, date, timestamp: Math.max(te, tp) };
 						});
 					if (res.length) Store.upDetail(code, { res });
 				}
@@ -1344,7 +1329,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		// excludeMenu = ["D"];
+		excludeMenu = ["D_CID", "D_OFFLINE", "D_VERIFY", "D_UPIMG", "D_RENAME", "D_MOVE"];
 		// styles
 		_style = `
         .ad-box {
@@ -1556,7 +1541,7 @@
 				const _waterfall = waterfall.cloneNode(true);
 				_waterfall.removeAttribute("style");
 				_waterfall.setAttribute("class", "x-show");
-				const items = this.modifyListItem(_waterfall);
+				const items = this.modifyItem(_waterfall);
 
 				const itemsLen = items?.length;
 				const isStarDetail = /^\/(uncensored\/)?star\/\w+/i.test(location.pathname);
@@ -1582,13 +1567,13 @@
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
 					if (!body) return;
-					let items = this.modifyListItem(body);
+					let items = this.modifyItem(body);
 					if (isStarDetail) [_, ...items] = items;
 					infScroll.appendItems(items);
 					infScroll.options.outlayer.appended(items);
 				});
 			},
-			modifyListItem(container) {
+			modifyItem(container) {
 				const items = container.querySelectorAll(".item");
 				for (const item of items) {
 					item.removeAttribute("style");
@@ -2178,7 +2163,7 @@
 					? "暂无网盘资源"
 					: res.reduce(
 							(acc, { pickCode, date, name }) =>
-								`${acc}<div class="x-line"><a href="${this.pickCodePrefix}${pickCode}" target="_blank" title="${date}/${name}">${name}</a></div>`,
+								`${acc}<div class="x-line"><a href="${this.pickCodePrefix}${pickCode}" target="_blank" title="${date} / ${name}">${name}</a></div>`,
 							""
 					  );
 			},
@@ -2186,9 +2171,7 @@
 				const table = DOC.querySelector("#magnet-table");
 				table.parentElement.innerHTML = `
 				<table class="table table-striped table-hover table-bordered x-table">
-                    <caption>
-                        <div class="x-caption">重构的表格</div>
-                    </caption>
+                    <caption><div class="x-caption">重构的表格</div></caption>
 				    <thead>
 				        <tr>
 				            <th scope="col">磁力名称</th>
@@ -2200,9 +2183,7 @@
 				        </tr>
 				    </thead>
 				    <tbody>
-                        <tr>
-                            <th scope="row" colspan="6" class="text-center text-muted">暂无数据</th>
-                        </tr>
+                        <tr><th scope="row" colspan="6" class="text-center text-muted">暂无数据</th></tr>
                     </tbody>
 				    <tfoot>
 				        <tr>
@@ -2249,11 +2230,15 @@
 				if (magnets?.length) this.refactorTd(magnets);
 			},
 			refactorTd(magnets) {
+				const table = DOC.querySelector(".x-table");
+
 				let sortStart = () => {
-					DOC.querySelector(".x-caption").insertAdjacentHTML(
-						"beforeend",
-						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
-					);
+					table
+						.querySelector(".x-caption")
+						.insertAdjacentHTML(
+							"beforeend",
+							`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
+						);
 				};
 				if (this.magnets) {
 					sortStart = null;
@@ -2261,10 +2246,27 @@
 				}
 				magnets = this.movieSort(magnets, sortStart);
 				this.magnets = magnets;
-				const table = DOC.querySelector(".x-table");
+
 				table.querySelector("tfoot td").textContent = magnets.length;
+
 				magnets = this.createTd(magnets);
-				if (magnets) table.querySelector("tbody").innerHTML = magnets;
+				if (!magnets) return;
+				table.querySelector("tbody").innerHTML = magnets;
+
+				if (!sortStart) return;
+				let copyAll = table.querySelector("thead th:last-child");
+				copyAll.innerHTML = `<a href="javascript:void(0);" title="复制所有磁力链接">全部复制</a>`;
+				copyAll.querySelector("a").addEventListener("click", e => {
+					e.preventDefault();
+					e.stopPropagation();
+					GM_setClipboard(this.magnets.map(magnet => magnet.link).join("\n"));
+					const { target } = e;
+					target.textContent = "复制成功";
+					const timer = setTimeout(() => {
+						target.textContent = "全部复制";
+						clearTimeout(timer);
+					}, 400);
+				});
 			},
 			createTd(magnets) {
 				if (!magnets.length) return;
