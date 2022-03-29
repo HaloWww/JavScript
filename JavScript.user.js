@@ -1975,7 +1975,8 @@
                 .table-striped > tbody > tr:nth-of-type(odd) {
                     background: var(--x-sub-bgc) !important;
                 }
-                .btn-group button.active {
+                .btn-group button.active,
+                .x-offline.active {
                     background: var(--x-bgc) !important;
                 }
                 tbody tr:hover,
