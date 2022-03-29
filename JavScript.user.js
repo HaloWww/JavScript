@@ -421,31 +421,30 @@
 			}
 			return magnets;
 		}
-		static async getDefaultFile() {
-			const res = await request(
-				"https://webapi.115.com/files",
-				{
-					aid: 1,
-					cid: 0,
-					o: "user_ptime",
-					asc: 0,
-					offset: 0,
-					show_dir: 1,
-					limit: 115,
-					code: "",
-					scid: "",
-					snap: "",
-					natsort: 1,
-					record_open_time: 1,
-					source: "",
-					format: "json",
-				},
-				"GET",
-				{ responseType: "json" }
-			);
-			console.log(res);
-			// return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
-		}
+		// static async getDefaultFile() {
+		// 	const res = await request(
+		// 		"https://webapi.115.com/files",
+		// 		{
+		// 			aid: 1,
+		// 			cid: 0,
+		// 			o: "user_ptime",
+		// 			asc: 0,
+		// 			offset: 0,
+		// 			show_dir: 1,
+		// 			limit: 115,
+		// 			code: "",
+		// 			scid: "",
+		// 			snap: "",
+		// 			natsort: 1,
+		// 			record_open_time: 1,
+		// 			source: "",
+		// 			format: "json",
+		// 		},
+		// 		"GET",
+		// 		{ responseType: "json" }
+		// 	);
+		// 	return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
+		// }
 		static async searchFile(search_value) {
 			const res = await request(
 				"https://webapi.115.com/files/search",
@@ -478,7 +477,6 @@
 		contentLoaded = () => {};
 		load = () => {};
 
-		route = null;
 		menus = {
 			tabs: [
 				{ title: "全站", key: "global", prefix: "G" },
@@ -504,8 +502,8 @@
 				"D_OFFLINE",
 				"D_CID",
 				"D_VERIFY",
-				// "D_UPIMG",
 				"D_RENAME",
+				// "D_UPIMG",
 				// "D_MOVE",
 			],
 			details: [
@@ -612,19 +610,19 @@
 					defaultVal: true,
 				},
 				{
+					name: "一键离线自动化",
+					key: "D_OFFLINE",
+					type: "switch",
+					info: "静默执行",
+					defaultVal: true,
+				},
+				{
 					name: "离线下载目录",
 					key: "D_CID",
 					type: "input",
 					info: "自定义离线下载目录 cid，默认动态参数：<code>${云下载}</code>",
 					placeholder: "cid 或动态参数",
 					defaultVal: "${云下载}",
-				},
-				{
-					name: "一键离线自动化",
-					key: "D_OFFLINE",
-					type: "switch",
-					info: "静默执行",
-					defaultVal: true,
 				},
 				{
 					name: "离线结果验证延迟",
@@ -634,13 +632,6 @@
 					placeholder: "仅支持一位小数 ≥ 1.0",
 					defaultVal: 3,
 				},
-				// {
-				// 	name: "上传封面",
-				// 	key: "D_UPIMG",
-				// 	type: "switch",
-				// 	info: "『离线结果验证』成功自动上传封面图",
-				// 	defaultVal: true,
-				// },
 				{
 					name: "离线重命名",
 					key: "D_RENAME",
@@ -650,15 +641,23 @@
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
 				// {
+				// 	name: "上传封面",
+				// 	key: "D_UPIMG",
+				// 	type: "switch",
+				// 	info: "『离线结果验证』成功后上传封面图",
+				// 	defaultVal: true,
+				// },
+				// {
 				// 	name: "移动目录",
 				// 	key: "D_MOVE",
 				// 	type: "input",
-				// 	info: "『离线结果验证』成功自动移动资源至设置目录",
+				// 	info: "『离线结果验证』成功后移动资源至设置目录",
 				// 	placeholder: "对应网盘目录 cid",
 				// 	defaultVal: "",
 				// },
 			],
 		};
+		route = null;
 		pickCodePrefix = "https://v.anxia.com/?pickcode=";
 
 		init() {
@@ -1310,12 +1309,14 @@
 		};
 		// D_OFFLINE
 		driveOffLine = () => {};
+		// D_CID
+		driveCid = () => {};
 		// D_VERIFY
 		driveVerify = () => {};
-		// D_UPIMG
-		// driveUpImg = () => {};
 		// D_RENAME
 		driveRename = () => {};
+		// D_UPIMG
+		// driveUpImg = () => {};
 		// D_MOVE
 		// driveMove = () => {};
 	}
@@ -1330,7 +1331,13 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		// excludeMenu = ["D_VERIFY", "D_UPIMG", "D_RENAME", "D_MOVE"];
+		excludeMenu = [
+			// "D_MATCH",
+			"D_OFFLINE",
+			"D_CID",
+			"D_VERIFY",
+			"D_RENAME",
+		];
 		// styles
 		_style = `
         .ad-box {
@@ -2157,7 +2164,7 @@
 				const start = () => {
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div><button type="button" class="btn btn-default btn-sm btn-block x-offline">一键离线</button>`
+						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div><button type="button" class="btn btn-default btn-sm btn-block x-offline" disabled>一键离线</button>`
 					);
 				};
 
