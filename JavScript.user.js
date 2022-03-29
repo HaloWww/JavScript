@@ -209,15 +209,16 @@
 				request(javStore?.querySelector("#content_news li a")?.href),
 			]);
 
-			return (
-				bjRes
+			let bjImg = "";
+			if (bjRes) {
+				bjImg = bjRes
 					?.querySelector("#page .entry-content a img")
 					?.getAttribute("data-lazy-src")
 					.replace("//t", "//img")
-					.replace("thumbs", "images") ||
-				jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") ||
-				""
-			);
+					.replace("thumbs", "images");
+			}
+
+			return bjImg || jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") || "";
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
@@ -2065,7 +2066,10 @@
 
 					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v?.pause());
 					const { nodeName, src } = targetNode;
-					if (nodeName === "VIDEO") return targetNode.play();
+					if (nodeName === "VIDEO") {
+						targetNode.focus();
+						return targetNode.play();
+					}
 					bigImage.querySelector(".x-grass-img").src = src;
 					bigImage.href = src;
 				});
