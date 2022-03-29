@@ -611,42 +611,42 @@
 					defaultVal: true,
 				},
 				{
-					name: "一键自动离线",
-					key: "D_OFFLINE",
-					type: "switch",
-					info: "脚本自动执行",
-					defaultVal: true,
-				},
-				{
 					name: "离线下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "自定义离线目录 cid，默认动态参数：<code>${云下载}</code>",
-					placeholder: "填写以提升『一键离线』效率",
+					info: "自定义离线下载目录 cid，默认动态参数：<code>${云下载}</code>",
+					placeholder: "cid 或动态参数",
 					defaultVal: "${云下载}",
+				},
+				{
+					name: "一键离线自动化",
+					key: "D_OFFLINE",
+					type: "switch",
+					info: "静默执行",
+					defaultVal: true,
 				},
 				{
 					name: "离线结果验证延迟",
 					key: "D_VERIFY",
 					type: "number",
-					info: "『一键离线』延迟查询离线结果是否成功，设置延迟秒数。0 不验证 (默认 3)",
+					info: "延迟验证离线结果是否成功，设置延迟秒数。0 不验证 (默认 3)",
 					placeholder: "仅支持一位小数 ≥ 1.0",
 					defaultVal: 3,
 				},
-				{
-					name: "上传封面",
-					key: "D_UPIMG",
-					type: "switch",
-					info: "『离线结果验证』成功自动上传封面图",
-					defaultVal: true,
-				},
+				// {
+				// 	name: "上传封面",
+				// 	key: "D_UPIMG",
+				// 	type: "switch",
+				// 	info: "『离线结果验证』成功自动上传封面图",
+				// 	defaultVal: true,
+				// },
 				{
 					name: "离线重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: "『离线结果验证』成功自动修改资源名称，动态参数：<code>${番号}</code>，<code>${标题}</code>",
-					placeholder: "不要填写后缀，可能导致资源不可用",
-					defaultVal: "${番号} - ${标题}",
+					info: "『离线结果验证』成功后资源重命名，动态参数：<code>${字幕}</code>，<code>${番号}</code>，<code>${标题}</code>",
+					placeholder: "请勿填写后缀，可能导致资源不可用",
+					defaultVal: "${字幕}${番号} - ${标题}",
 				},
 				// {
 				// 	name: "移动目录",
@@ -1312,11 +1312,11 @@
 		// D_VERIFY
 		driveVerify = () => {};
 		// D_UPIMG
-		driveUpImg = () => {};
+		// driveUpImg = () => {};
 		// D_RENAME
 		driveRename = () => {};
 		// D_MOVE
-		driveMove = () => {};
+		// driveMove = () => {};
 	}
 	class JavBus extends Common {
 		constructor() {
@@ -1329,7 +1329,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = ["D_CID", "D_OFFLINE", "D_VERIFY", "D_UPIMG", "D_RENAME", "D_MOVE"];
+		// excludeMenu = ["D_VERIFY", "D_UPIMG", "D_RENAME", "D_MOVE"];
 		// styles
 		_style = `
         .ad-box {
@@ -2152,7 +2152,7 @@
 				const start = () => {
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div>`
+						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div><button type="button" class="btn btn-default btn-sm btn-block x-offline">一键离线</button>`
 					);
 				};
 
