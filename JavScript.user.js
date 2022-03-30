@@ -33,6 +33,12 @@
 // @compatible      edge
 // ==/UserScript==
 
+/**
+ * TODO:
+ * 列表 - 标题等高模式
+ * 详情 - 磁链字幕额外过滤
+ */
+
 (function () {
 	// match domain
 	const MatchDomains = [
@@ -170,6 +176,17 @@
 			return item;
 		});
 		return Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
+	};
+	const notify = msg => {
+		GM_notification({
+			highlight: true,
+			silent: false,
+			timeout: 3000,
+			...msg,
+			text: msg?.text ?? GM_info.script.name,
+			image: GM_getResourceURL(msg?.image ?? "info"),
+			onclick: msg?.clickUrl ? () => GM_openInTab(msg.clickUrl, { active: true, setParent: true }) : () => {},
+		});
 	};
 
 	class Store {
@@ -421,30 +438,6 @@
 			}
 			return magnets;
 		}
-		// static async getDefaultFile() {
-		// 	const res = await request(
-		// 		"https://webapi.115.com/files",
-		// 		{
-		// 			aid: 1,
-		// 			cid: 0,
-		// 			o: "user_ptime",
-		// 			asc: 0,
-		// 			offset: 0,
-		// 			show_dir: 1,
-		// 			limit: 115,
-		// 			code: "",
-		// 			scid: "",
-		// 			snap: "",
-		// 			natsort: 1,
-		// 			record_open_time: 1,
-		// 			source: "",
-		// 			format: "json",
-		// 		},
-		// 		"GET",
-		// 		{ responseType: "json" }
-		// 	);
-		// 	return !res?.data?.length ? "" : res.data.find(({ n, ns }) => [n, ns].includes("云下载"))?.cid;
-		// }
 		static async searchFile(search_value) {
 			const res = await request(
 				"https://webapi.115.com/files/search",
@@ -473,6 +466,60 @@
 					return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
 				});
 		}
+		static async getFile(params = {}) {
+			const res = await request(
+				"https://webapi.115.com/files",
+				{
+					aid: 1,
+					cid: 0,
+					o: "user_ptime",
+					asc: 0,
+					offset: 0,
+					show_dir: 1,
+					limit: 10000,
+					code: "",
+					scid: "",
+					snap: 0,
+					natsort: 1,
+					record_open_time: 1,
+					source: "",
+					format: "json",
+					...params,
+				},
+				"GET",
+				{ responseType: "json" }
+			);
+			return res?.data ?? [];
+		}
+		static async getFileCidByName(name) {
+			if (!name) return "";
+			const res = await this.getFile();
+			return res.find(({ n }) => n === name)?.cid ?? "";
+		}
+		static async getSign() {
+			const res = await request(
+				"http://115.com/",
+				{ ct: "offline", ac: "space", _: new Date().getTime() },
+				"GET",
+				{ responseType: "json" }
+			);
+			if (res?.sign) return { sign: res.sign, time: res.time };
+			notify({
+				title: "请求失败，115未登录",
+				text: "请登录后重试",
+				image: "fail",
+				clickUrl: "http://115.com/?mode=login",
+			});
+		}
+		static async addTaskUrl({ url, wp_path_id = "" }) {
+			const sign = await this.getSign();
+			if (!sign) return;
+			return await request(
+				"https://115.com/web/lixian/?ct=lixian&ac=add_task_url",
+				{ url, wp_path_id, uid: 0, ...sign },
+				"POST"
+			);
+		}
 	}
 	class Common {
 		docStart = () => {};
@@ -490,9 +537,11 @@
 				"G_DARK",
 				"G_SEARCH",
 				"G_CLICK",
+
 				"L_MIT",
 				"L_MTL",
 				"L_SCROLL",
+
 				"M_IMG",
 				"M_VIDEO",
 				"M_PLAYER",
@@ -500,8 +549,9 @@
 				"M_STAR",
 				"M_SORT",
 				"M_MAGNET",
+
 				"D_MATCH",
-				"D_OFFLINE",
+				"D_AUTO",
 				"D_CID",
 				"D_VERIFY",
 				"D_RENAME",
@@ -605,41 +655,41 @@
 					defaultVal: true,
 				},
 				{
-					name: "资源匹配",
+					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "列表页 & 详情页 查询网盘是否已有资源",
+					info: "资源匹配 & 离线开关",
 					defaultVal: true,
 				},
 				{
-					name: "一键离线自动化",
-					key: "D_OFFLINE",
+					name: "自动化",
+					key: "D_AUTO",
 					type: "switch",
-					info: "静默执行",
-					defaultVal: true,
+					info: "『一键离线』静默执行",
+					defaultVal: false,
 				},
 				{
-					name: "离线下载目录",
+					name: "下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "自定义离线下载目录 cid，默认动态参数：<code>${云下载}</code>",
-					placeholder: "cid 或动态参数",
+					info: "离线下载自定目录 cid，默认动态参数：<code>${云下载}</code>",
+					placeholder: "cid 或动态参数 (推荐 cid)",
 					defaultVal: "${云下载}",
 				},
 				{
-					name: "离线结果验证延迟",
+					name: "文件验证",
 					key: "D_VERIFY",
 					type: "number",
-					info: "延迟验证离线结果是否成功，设置延迟秒数。0 不验证 (默认 3)",
+					info: "离线下载文件验证，设置延迟秒数。0 不验证 (默认 3)；仅支持『一键离线』",
 					placeholder: "仅支持一位小数 ≥ 1.0",
 					defaultVal: 3,
 				},
 				{
-					name: "离线重命名",
+					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: "『离线结果验证』成功后资源重命名，动态参数：<code>${字幕}</code>，<code>${番号}</code>，<code>${标题}</code>",
-					placeholder: "请勿填写后缀，可能导致资源不可用",
+					info: "离线下载文件重命名，动态参数：<code>${字幕}</code>，<code>${番号}</code>，<code>${标题}</code>；仅支持『一键离线』",
+					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
 				// {
@@ -1307,10 +1357,14 @@
 
 			return res;
 		};
-		// D_OFFLINE
-		driveOffLine = () => {};
+		// D_AUTO
+		driveAuto = () => {};
 		// D_CID
-		driveCid = () => {};
+		driveCid = async () => {
+			let cid = this.D_CID;
+			if (/^\$\{.+\}$/.test(cid)) cid = await Apis.getFileCidByName(cid.replace(/\$|\{|\}/g, ""));
+			return cid;
+		};
 		// D_VERIFY
 		driveVerify = () => {};
 		// D_RENAME
@@ -1333,10 +1387,10 @@
 		};
 		excludeMenu = [
 			// "D_MATCH",
-			"D_OFFLINE",
-			"D_CID",
-			"D_VERIFY",
-			"D_RENAME",
+			// "D_AUTO",
+			// "D_CID",
+			// "D_VERIFY",
+			// "D_RENAME",
 		];
 		// styles
 		_style = `
@@ -2164,7 +2218,7 @@
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" disabled>一键离线</button>`
+						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all" disabled>一键离线</button>`
 					);
 				};
 
@@ -2178,6 +2232,8 @@
 								`${acc}<div class="x-line"><a href="${this.pickCodePrefix}${pickCode}" target="_blank" title="${date} / ${name}">${name}</a></div>`,
 							""
 					  );
+
+				DOC.querySelector(".x-offline").addEventListener("click", e => this._offline(e));
 			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
@@ -2208,8 +2264,7 @@
 				`;
 
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
-					if (handleCopyTxt(e, "复制成功") || !Object.keys(e.target.dataset).length) return;
-					console.info(e.target.dataset);
+					!handleCopyTxt(e, "复制成功") && this._offline(e);
 				});
 
 				const magnets = [];
@@ -2327,6 +2382,36 @@
                     `,
 					""
 				);
+			},
+			async _offline(e) {
+				const { target } = e;
+				const { magnet } = target.dataset;
+				if (!magnet) return;
+				e.preventDefault();
+				e.stopPropagation();
+
+				const { classList } = target;
+				if (classList.contains("active")) return;
+
+				classList.add("active");
+				const origin = target.textContent;
+				target.textContent = "请求中...";
+
+				const cid = await this.driveCid();
+
+				if (magnet === "all") {
+					console.log("一键离线");
+				} else {
+					const res = await Apis.addTaskUrl({ url: magnet, wp_path_id: cid });
+					notify({
+						title: `离线任务添加${res.state ? "成功" : "失败"}`,
+						text: res.error_msg,
+						image: res.state ? "success" : "fail",
+					});
+				}
+
+				classList.remove("active");
+				target.textContent = origin;
 			},
 		};
 	}
