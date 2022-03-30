@@ -1296,12 +1296,13 @@
 					res = await this.driveMatch({ ...item, code });
 				}
 			} else {
-				if (!res) res = await Apis.searchFile(prefix);
-				if (res?.length) {
+				let _res = res ?? (await Apis.searchFile(prefix));
+				if (_res?.length) {
 					const regex = new RegExp(`${codes.join(".*")}`, "gi");
-					res = res.filter(({ name }) => regex.test(name));
-					if (res.length) Store.upDetail(code, { res });
+					_res = _res.filter(({ name }) => regex.test(name));
+					if (!res && _res.length) Store.upDetail(code, { res: _res });
 				}
+				res = _res;
 			}
 
 			return res;
