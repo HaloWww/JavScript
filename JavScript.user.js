@@ -951,8 +951,8 @@
             --x-green: #30d158;
             --x-red: #ff453a;
 
-            --x-thumb-w: 180px;
-            --x-cover-w: 290px;
+            --x-thumb-w: 190px;
+            --x-cover-w: 295px;
 
             --x-thumb-ratio: 334 / 473;
             --x-cover-ratio: 135 / 91;
