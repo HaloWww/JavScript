@@ -18,10 +18,11 @@ module.exports = {
 		InfiniteScroll: true,
 	},
 	rules: {
-		// "no-param-reassign": "warn",
-		// "no-constructor-return": "off",
-		// "no-unused-vars": "warn",
-		// "max-params": "off",
-		// "no-template-curly-in-string": "warn",
+		"max-params": "warn",
+		"no-param-reassign": "warn",
+		"no-template-curly-in-string": "warn",
+		"no-unused-vars": "warn",
+		"no-constructor-return": "warn",
+		"no-eval": "warn",
 	},
 };

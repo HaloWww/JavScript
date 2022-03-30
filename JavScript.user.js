@@ -129,14 +129,14 @@
 		target.addEventListener("click", handleCopyTxt);
 		node.appendChild(target);
 	};
-	const handleCopyTxt = e => {
+	const handleCopyTxt = (e, text) => {
 		if (!e?.target?.dataset?.copy) return;
 		e.preventDefault();
 		e.stopPropagation();
 		const { target } = e;
 		GM_setClipboard(target.dataset.copy);
 		const original = target.textContent ?? "";
-		target.textContent = "成功";
+		target.textContent = text ?? "成功";
 		const timer = setTimeout(() => {
 			target.textContent = original;
 			clearTimeout(timer);
@@ -467,8 +467,8 @@
 				"GET",
 				{ responseType: "json" }
 			);
-			return (res?.data ?? []).map(({ cid, fid, n, pc, play_long, sha, t, te, tp }) => {
-				return { cid, fid, n, pc, play_long, sha, t, te, tp };
+			return (res?.data ?? []).map(({ cid, fid, n, pc, play_long, t, te, tp }) => {
+				return { cid, fid, n, pc, play_long, t, te, tp };
 			});
 		}
 	}
@@ -1299,8 +1299,8 @@
 					const regex = new RegExp(`${codes.join(".*")}`, "gi");
 					res = res
 						.filter(({ n, play_long }) => regex.test(n) && play_long)
-						.map(({ cid, fid, n: name, pc: pickCode, sha, t: date, te, tp }) => {
-							return { cid, fid, name, pickCode, sha, date, timestamp: Math.max(te, tp) };
+						.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
+							return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
 						});
 					if (res.length) Store.upDetail(code, { res });
 				}
@@ -1923,7 +1923,7 @@
                     z-index: -1;
                 }
                 .x-contain.x-in {
-                    z-index: 1 !important;
+                    z-index: 9 !important;
                 }
                 .mfp-img {
                     max-height: unset !important;
@@ -1931,8 +1931,7 @@
                 .btn-group button {
                     border-width: .5px !important;
                 }
-                .x-res .x-line,
-                .x-res a {
+                .x-res * {
                     color: #CC0000 !important;
                 }
                 .x-table {
@@ -2162,9 +2161,10 @@
 			},
 			async _driveMatch() {
 				const start = () => {
+					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><div class="mb10 x-res">查询中...</div><button type="button" class="btn btn-default btn-sm btn-block x-offline" disabled>一键离线</button>`
+						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" disabled>一键离线</button>`
 					);
 				};
 
@@ -2208,7 +2208,7 @@
 				`;
 
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
-					if (handleCopyTxt(e) || !Object.keys(e.target.dataset).length) return;
+					if (handleCopyTxt(e, "复制成功") || !Object.keys(e.target.dataset).length) return;
 					console.info(e.target.dataset);
 				});
 
@@ -2266,7 +2266,7 @@
 				table.querySelector("tbody").innerHTML = magnets;
 
 				if (!sortStart) return;
-				let copyAll = table.querySelector("thead th:last-child");
+				const copyAll = table.querySelector("thead th:last-child");
 				copyAll.innerHTML = `<a href="javascript:void(0);" title="复制所有磁力链接">全部复制</a>`;
 				copyAll.querySelector("a").addEventListener("click", e => {
 					e.preventDefault();
@@ -2311,9 +2311,10 @@
                                 class="x-mr"
                                 title="复制磁力链接"
                             >
-                                复制
+                                链接复制
                             </a>
                             <a
+                                hidden
                                 href="javascript:void(0);"
                                 data-magnet="${link}"
                                 class="text-success"
