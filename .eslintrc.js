@@ -1,4 +1,3 @@
-// npm i -D babel-eslint@8 eslint-config-alloy@3 eslint @babel/eslint-parser vue-eslint-parser eslint-plugin-vue
 module.exports = {
 	extends: ["alloy"],
 	globals: {
