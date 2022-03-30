@@ -1135,7 +1135,7 @@
 			const img = node.querySelector("img");
 			if (!this.L_MIT || !img) return;
 			node.classList.add("x-cover");
-			img.setAttribute("loading", "lazy");
+			img.loading = "lazy";
 			const { src = "" } = img;
 			img.src = condition.find(({ regex }) => regex.test(src))?.replace(src);
 		};
