@@ -1845,8 +1845,8 @@
                 html {
                     padding-right: 0 !important;
                 }
-                @media (min-width: 1210px) {
-				    .container { width: 1210px; }
+                @media (min-width: 1270px) {
+				    .container { width: 1270px; }
 				}
                 .container {
 				    margin-bottom: 40px;
