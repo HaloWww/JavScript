@@ -467,9 +467,11 @@
 				"GET",
 				{ responseType: "json" }
 			);
-			return (res?.data ?? []).map(({ cid, fid, n, pc, play_long, t, te, tp }) => {
-				return { cid, fid, n, pc, play_long, t, te, tp };
-			});
+			return (res?.data ?? [])
+				.filter(item => item.play_long)
+				.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
+					return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
+				});
 		}
 	}
 	class Common {
@@ -1297,14 +1299,11 @@
 				if (!res) res = await Apis.searchFile(prefix);
 				if (res?.length) {
 					const regex = new RegExp(`${codes.join(".*")}`, "gi");
-					res = res
-						.filter(({ n, play_long }) => regex.test(n) && play_long)
-						.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
-							return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
-						});
+					res = res.filter(({ name }) => regex.test(name));
 					if (res.length) Store.upDetail(code, { res });
 				}
 			}
+
 			return res;
 		};
 		// D_OFFLINE
