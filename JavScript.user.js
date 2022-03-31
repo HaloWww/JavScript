@@ -107,7 +107,11 @@
 					console.warn(`请求超时，检查网络`);
 				},
 				onload: ({ status, response }) => {
-					if (status === 404 || response?.errcode === 911) response = false;
+					const errcode = response?.errcode ?? "";
+
+					if (errcode === 911) verify();
+					if (status === 404 || errcode === 911) response = false;
+
 					if (response && ["", "text"].includes(params.responseType ?? "")) {
 						const htmlRegex = /<\/?[a-z][\s\S]*>/i;
 						const jsonRegex = /^{.*}$/;
@@ -117,6 +121,7 @@
 							response = JSON.parse(response);
 						}
 					}
+
 					resolve(response);
 				},
 				...params,
@@ -191,6 +196,17 @@
 			image: GM_getResourceURL(msg?.image ?? "info"),
 			onclick: msg?.clickUrl ? () => GM_openInTab(msg.clickUrl, { active: true, setParent: true }) : () => {},
 		});
+	};
+	const verify = () => {
+		const h = 667;
+		const w = 375;
+		const t = (window.screen.availHeight - h) / 2;
+		const l = (window.screen.availWidth - w) / 2;
+		window.open(
+			`https://captchaapi.115.com/?ac=security_code&type=web&cb=Close911_${new Date().getTime()}`,
+			"验证账号",
+			`height=${h},width=${w},top=${t},left=${l},toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no`
+		);
 	};
 
 	class Store {
@@ -505,6 +521,7 @@
 				clickUrl: "http://115.com/?mode=login",
 			});
 		}
+		// driveMethods
 		static async searchFileForVideo(search_value) {
 			const res = await this.searchFile({
 				search_value,
@@ -565,8 +582,8 @@
 				"M_MAGNET",
 
 				"D_MATCH",
-				"D_AUTO",
 				"D_CID",
+				"D_AUTO",
 				"D_VERIFY",
 				"D_RENAME",
 				// "D_UPIMG",
@@ -672,15 +689,8 @@
 					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "资源匹配 & 离线开关",
+					info: "资源匹配 & 离线开关 (请确保已登录网盘)",
 					defaultVal: true,
-				},
-				{
-					name: "自动化",
-					key: "D_AUTO",
-					type: "switch",
-					info: "『一键离线』静默执行",
-					defaultVal: false,
 				},
 				{
 					name: "下载目录",
@@ -689,6 +699,13 @@
 					info: "离线下载自定目录 cid，默认动态参数：<code>${云下载}</code>",
 					placeholder: "cid 或动态参数 (推荐 cid)",
 					defaultVal: "${云下载}",
+				},
+				{
+					name: "自动化",
+					key: "D_AUTO",
+					type: "switch",
+					info: "『一键离线』静默执行",
+					defaultVal: false,
 				},
 				{
 					name: "文件验证",
@@ -1371,14 +1388,14 @@
 
 			return res;
 		};
-		// D_AUTO
-		driveAuto = () => {};
 		// D_CID
 		driveCid = async () => {
 			let cid = this.D_CID;
 			if (/^\$\{.+\}$/.test(cid)) cid = await Apis.getFileCidByName(cid.replace(/\$|\{|\}/g, ""));
 			return cid;
 		};
+		// D_AUTO
+		driveAuto = () => {};
 		// D_VERIFY
 		driveVerify = () => {};
 		// D_RENAME
@@ -2022,11 +2039,13 @@
                     border-left: none !important;
 				}
                 .x-table tr > *:first-child {
-                    width: 33%;
-                    max-width: 580px;
+                    width: 50px;
+                }
+                .x-table tr > *:nth-child(2) {
+                    width: 33.3%;
                 }
                 .x-table tr > *:last-child,
-                .x-table tfoot tr > *:first-child {
+                .x-table tfoot tr > th:not(:nth-child(3)) {
                     border-right: none !important;
                 }
                 .x-table tbody {
@@ -2232,7 +2251,7 @@
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all" disabled>一键离线</button>`
+						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all">一键离线</button>`
 					);
 				};
 
@@ -2256,6 +2275,7 @@
                     <caption><div class="x-caption">重构的表格</div></caption>
 				    <thead>
 				        <tr>
+				            <th scope="col">#</th>
 				            <th scope="col">磁力名称</th>
 				            <th scope="col">档案大小</th>
 				            <th scope="col" class="text-center">分享日期</th>
@@ -2265,12 +2285,13 @@
 				        </tr>
 				    </thead>
 				    <tbody>
-                        <tr><th scope="row" colspan="6" class="text-center text-muted">暂无数据</th></tr>
+                        <tr><th scope="row" colspan="7" class="text-center text-muted">暂无数据</th></tr>
                     </tbody>
 				    <tfoot>
 				        <tr>
                             <th scope="row"></th>
-				            <th scope="row" colspan="4" class="text-right">总数</th>
+                            <th></th>
+				            <th colspan="4" class="text-right">总数</th>
 				            <td>0</td>
 				        </tr>
 				    </tfoot>
@@ -2304,7 +2325,7 @@
 				const start = () => {
 					DOC.querySelector(".x-caption").insertAdjacentHTML(
 						"beforeend",
-						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span>`
+						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span><span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 自动去重</span>`
 					);
 				};
 				const magnets = await this.movieMagnet(this.params, start);
@@ -2352,10 +2373,11 @@
 			createTd(magnets) {
 				if (!magnets.length) return;
 				return magnets.reduce(
-					(acc, { name, link, size, date, from, href, zh }) => `
+					(acc, { name, link, size, date, from, href, zh }, index) => `
                     ${acc}
                     <tr>
-                        <th scope="row" class="x-line" title="${name}">
+                        <th scope="row">${index + 1}</th>
+                        <th class="x-line" title="${name}">
                             <a href="${link}">${name}</a>
                         </th>
                         <td>${size}</td>
@@ -2414,14 +2436,16 @@
 				const cid = await this.driveCid();
 
 				if (magnet === "all") {
-					console.info("一键离线");
+					console.info(this.magnets);
 				} else {
 					const res = await Apis.addTaskUrl({ url: magnet, wp_path_id: cid });
-					notify({
-						title: `离线任务添加${res.state ? "成功" : "失败"}`,
-						text: res.error_msg,
-						image: res.state ? "success" : "fail",
-					});
+					if (res) {
+						notify({
+							title: `离线任务添加${res.state ? "成功" : "失败"}`,
+							text: res.error_msg,
+							image: res.state ? "success" : "fail",
+						});
+					}
 				}
 
 				classList.remove("active");
@@ -2430,8 +2454,30 @@
 		};
 	}
 
+	class Drive115 {
+		contentLoaded() {
+			window.focus();
+			DOC.querySelector(".bottom button").addEventListener("click", () => {
+				const interval = setInterval(() => {
+					if (DOC.querySelector(".vcode-hint").getAttribute("style").indexOf("none") !== -1) {
+						clearTimer();
+						window.open("", "_self");
+						window.close();
+					}
+				}, 300);
+
+				const timeout = setTimeout(() => clearTimer(), 600);
+
+				const clearTimer = () => {
+					clearInterval(interval);
+					clearTimeout(timeout);
+				};
+			});
+		}
+	}
+
 	const Process = eval(`new ${Matched.domain}()`);
-	Process.docStart();
-	DOC.addEventListener("DOMContentLoaded", () => Process.contentLoaded());
-	window.addEventListener("load", () => Process.load());
+	Process.docStart && Process.docStart();
+	Process.contentLoaded && DOC.addEventListener("DOMContentLoaded", () => Process.contentLoaded());
+	Process.load && window.addEventListener("load", () => Process.load());
 })();
