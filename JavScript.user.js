@@ -444,33 +444,26 @@
 			return magnets;
 		}
 		// drive
-		static async searchFile(search_value) {
+		static async searchFile(params = {}) {
+			if (!params?.search_value?.trim()) return [];
 			const res = await request(
 				"https://webapi.115.com/files/search",
 				{
-					search_value,
 					offset: 0,
 					limit: 10000,
 					date: "",
 					aid: 1,
 					cid: 0,
 					pick_code: "",
-					type: 4,
+					type: "",
 					source: "",
 					format: "json",
-					o: "user_ptime",
-					asc: 0,
-					star: "",
-					suffix: "",
+					...params,
 				},
 				"GET",
 				{ responseType: "json" }
 			);
-			return (res?.data ?? [])
-				.filter(item => item.play_long)
-				.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
-					return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
-				});
+			return res?.data ?? [];
 		}
 		static async getFile(params = {}) {
 			const res = await request(
@@ -487,7 +480,7 @@
 					scid: "",
 					snap: 0,
 					natsort: 1,
-					record_open_time: 1,
+					star: 1,
 					source: "",
 					format: "json",
 					...params,
@@ -497,19 +490,14 @@
 			);
 			return res?.data ?? [];
 		}
-		static async getFileCidByName(name) {
-			if (!name) return "";
-			const res = await this.getFile();
-			return res.find(({ n }) => n === name)?.cid ?? "";
-		}
 		static async getSign() {
-			const res = await request(
+			const { state, sign, time } = await request(
 				"http://115.com/",
 				{ ct: "offline", ac: "space", _: new Date().getTime() },
 				"GET",
 				{ responseType: "json" }
 			);
-			if (res?.sign) return { sign: res.sign, time: res.time };
+			if (state) return { sign, time };
 			notify({
 				title: "请求失败，115未登录",
 				text: "请登录后重试",
@@ -517,12 +505,32 @@
 				clickUrl: "http://115.com/?mode=login",
 			});
 		}
+		static async searchFileForVideo(search_value) {
+			const res = await this.searchFile({
+				search_value,
+				type: 4,
+				o: "user_ptime",
+				asc: 0,
+				star: "",
+				suffix: "",
+			});
+			return res
+				.filter(item => item.play_long)
+				.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
+					return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
+				});
+		}
+		static async getFileCidByName(name) {
+			if (!name) return "";
+			const res = await this.getFile();
+			return res.find(({ n }) => n === name)?.cid ?? "";
+		}
 		static async addTaskUrl({ url, wp_path_id = "" }) {
 			const sign = await this.getSign();
 			if (!sign) return;
 			return await request(
 				"https://115.com/web/lixian/?ct=lixian&ac=add_task_url",
-				{ url, wp_path_id, uid: 0, ...sign },
+				{ url, wp_path_id, ...sign },
 				"POST"
 			);
 		}
@@ -1345,14 +1353,14 @@
 					const RESOURCE = GM_getValue("RESOURCE", []);
 					let item = RESOURCE.find(item => item.prefix === prefix);
 					if (!item) {
-						item = { prefix, res: await Apis.searchFile(prefix) };
+						item = { prefix, res: await Apis.searchFileForVideo(prefix) };
 						RESOURCE.push(item);
 						GM_setValue("RESOURCE", RESOURCE);
 					}
 					res = await this.driveMatch({ ...item, code });
 				}
 			} else {
-				let _res = res ?? (await Apis.searchFile(prefix));
+				let _res = res ?? (await Apis.searchFileForVideo(prefix));
 				if (_res?.length) {
 					const regex = new RegExp(`${codes.join(".*")}`, "gi");
 					_res = _res.filter(({ name }) => regex.test(name));
