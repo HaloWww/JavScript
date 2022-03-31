@@ -1249,6 +1249,7 @@
 			const infScroll = new InfiniteScroll(container, {
 				path: () => nextURL,
 				checkLastPage: path,
+				prefill: true,
 				outlayer: msnry,
 				history: false,
 			});
@@ -1416,13 +1417,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = [
-			// "D_MATCH",
-			// "D_AUTO",
-			// "D_CID",
-			// "D_VERIFY",
-			// "D_RENAME",
-		];
+		excludeMenu = ["D_AUTO", "D_VERIFY", "D_RENAME"];
 		// styles
 		_style = `
         .ad-box {
@@ -2251,7 +2246,7 @@
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all">一键离线</button>`
+						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all" disabled>一键离线</button>`
 					);
 				};
 
