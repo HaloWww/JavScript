@@ -24,5 +24,6 @@ module.exports = {
 		"no-unused-vars": "warn",
 		"no-constructor-return": "warn",
 		"no-eval": "warn",
+		"no-promise-executor-return": "warn",
 	},
 };

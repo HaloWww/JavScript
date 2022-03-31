@@ -208,6 +208,7 @@
 			`height=${h},width=${w},top=${t},left=${l},toolbar=no,menubar=no,scrollbars=no,resizable=no,location=no,status=no`
 		);
 	};
+	const delay = n => new Promise(r => setTimeout(r, n * 1000));
 
 	class Store {
 		static init() {
@@ -531,25 +532,37 @@
 				star: "",
 				suffix: "",
 			});
-			return res
-				.filter(item => item.play_long)
-				.map(({ cid, fid, n: name, pc: pickCode, t: date, te, tp }) => {
-					return { cid, fid, name, pickCode, date, timestamp: Math.max(te, tp) };
-				});
+			return res.map(({ cid, fid, n: name, pc: pickCode, play_long, t: date, te, tp }) => {
+				return { cid, fid, name, pickCode, play_long, date, timestamp: Math.max(te, tp) };
+			});
 		}
 		static async getFileCidByName(name) {
 			if (!name) return "";
 			const res = await this.getFile();
 			return res.find(({ n }) => n === name)?.cid ?? "";
 		}
-		static async addTaskUrl({ url, wp_path_id = "" }) {
-			const sign = await this.getSign();
-			if (!sign) return;
+		static async addTaskUrl({ url, wp_path_id = "", sign, time }) {
+			const _sign = sign && time ? { sign, time } : await this.getSign();
+			if (!_sign) return;
+
 			return await request(
 				"https://115.com/web/lixian/?ct=lixian&ac=add_task_url",
-				{ url, wp_path_id, ...sign },
+				{ url, wp_path_id, ..._sign },
 				"POST"
 			);
+		}
+		static getFileForVideoOfCid(cid = "") {
+			return this.getFile({
+				cid,
+				limit: 115,
+				record_open_time: 1,
+				star: "",
+				type: 4,
+				suffix: "",
+				custom_order: 0,
+				is_share: "",
+				fc_mix: "",
+			});
 		}
 	}
 	class Common {
@@ -1380,10 +1393,10 @@
 			} else {
 				let _res = res ?? (await Apis.searchFileForVideo(prefix));
 				if (_res?.length) {
-					const regex = new RegExp(`${codes.join(".*")}`, "gi");
-					_res = _res.filter(({ name }) => regex.test(name));
-					if (!res && _res.length) Store.upDetail(code, { res: _res });
+					const regex = new RegExp(`${codes.join(".*")}`, "i");
+					_res = _res.filter(({ name, play_long }) => regex.test(name) && play_long);
 				}
+				if (!res) Store.upDetail(code, { res: _res });
 				res = _res;
 			}
 
@@ -1417,7 +1430,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = ["D_AUTO", "D_VERIFY", "D_RENAME"];
+		excludeMenu = ["D_AUTO", "D_RENAME"];
 		// styles
 		_style = `
         .ad-box {
@@ -2246,7 +2259,7 @@
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
-						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all" disabled>一键离线</button>`
+						`<p class="header">网盘资源:</p><p class="x-res">查询中...</p><button type="button" class="btn btn-default btn-sm btn-block x-offline" data-magnet="all">一键离线</button>`
 					);
 				};
 
@@ -2261,7 +2274,7 @@
 							""
 					  );
 
-				DOC.querySelector(".x-offline").addEventListener("click", e => this._offline(e));
+				DOC.querySelector(".x-offline").addEventListener("click", e => this._driveOffline(e));
 			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
@@ -2294,7 +2307,7 @@
 				`;
 
 				DOC.querySelector(".x-table tbody").addEventListener("click", e => {
-					!handleCopyTxt(e, "复制成功") && this._offline(e);
+					!handleCopyTxt(e, "复制成功") && this._driveOffline(e);
 				});
 
 				const magnets = [];
@@ -2414,10 +2427,12 @@
 					""
 				);
 			},
-			async _offline(e) {
+			async _driveOffline(e) {
 				const { target } = e;
 				const { magnet } = target.dataset;
+
 				if (!magnet) return;
+
 				e.preventDefault();
 				e.stopPropagation();
 
@@ -2425,26 +2440,61 @@
 				if (classList.contains("active")) return;
 
 				classList.add("active");
-				const origin = target.textContent;
+				const originText = target.textContent;
 				target.textContent = "请求中...";
 
-				const cid = await this.driveCid();
+				const wp_path_id = await this.driveCid();
 
 				if (magnet === "all") {
-					console.info(this.magnets);
-				} else {
-					const res = await Apis.addTaskUrl({ url: magnet, wp_path_id: cid });
-					if (res) {
+					const list = this.magnets;
+					const listLen = list.length;
+
+					const { code } = this.params;
+					let detailRes = Store.getDetail(code)?.res;
+					detailRes = detailRes.map(item => item.fid);
+
+					for (let index = 0; index < listLen; index++) {
+						const sign = await Apis.getSign();
+						if (!sign) break;
+
+						const { link: url } = list[index];
+						const taskRes = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
+						if (!taskRes?.state) {
+							if (index + 1 !== listLen) continue;
+							notify({ title: "一键离线任务失败", image: "fail" });
+							break;
+						}
+
+						let offlineRes = "";
+						for (let idx = 0; idx < this.D_VERIFY; idx++) {
+							let files = await Apis.getFileForVideoOfCid(wp_path_id);
+							files.forEach(item => {
+								item.name = item.n;
+							});
+							offlineRes = await this.driveMatch({ code, res: files });
+							offlineRes = offlineRes.filter(item => !detailRes.includes(item.fid));
+							if (offlineRes.length) break;
+							await delay(1);
+						}
+						if (!offlineRes.length) continue;
+						notify({ title: "一键离线任务成功", image: "success" });
+						break;
+					}
+				} else if (magnet) {
+					const taskRes = await Apis.addTaskUrl({ url: magnet, wp_path_id });
+					if (taskRes) {
 						notify({
-							title: `离线任务添加${res.state ? "成功" : "失败"}`,
-							text: res.error_msg,
-							image: res.state ? "success" : "fail",
+							title: `离线任务添加${taskRes.state ? "成功" : "失败"}`,
+							text: taskRes.error_msg,
+							image: taskRes.state ? "success" : "fail",
 						});
 					}
 				}
 
 				classList.remove("active");
-				target.textContent = origin;
+				target.textContent = originText;
+
+				location.reload();
 			},
 		};
 	}
