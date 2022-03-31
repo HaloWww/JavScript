@@ -7,12 +7,11 @@
 		"userscript",
 		"tampermonkey",
 		"javbus",
-		"javdb"
+		"javdb",
+		"115"
 	],
-	"homepage": "https://greasyfork.org/zh-CN/scripts/435360",
-	"bugs": {
-		"url": "https://github.com/BolinChan/JavScript/issues"
-	},
+	"homepage": "https://github.com/BolinChan/JavScript",
+	"bugs": "https://github.com/BolinChan/JavScript/issues",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/BolinChan/JavScript.git"

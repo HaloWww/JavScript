@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            JavScript
-// @namespace       https://greasyfork.org/users/175514
+// @namespace       JavScript@blc
 // @version         3.0.0
 // @author          blc
 // @description     一站式体验, JavBus & JavDB 兼容
@@ -37,6 +37,10 @@
  * TODO:
  * 列表 - 标题等高模式
  * 详情 - 磁链字幕额外过滤
+ * 详情 - 封面图上传
+ * 115 - 源码播放
+ * 详情 - 发送到 aria2 下载
+ * 列表 - 下载封面
  */
 
 (function () {
