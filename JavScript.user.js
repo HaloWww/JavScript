@@ -48,7 +48,7 @@
 	const MatchDomains = [
 		{ domain: "JavBus", regex: /(jav|bus|dmm|see|cdn|fan){2}\./g },
 		{ domain: "JavDB", regex: /javdb\d*\.com/g },
-		{ domain: "Disk115", regex: /captchaapi\.115\.com/g },
+		{ domain: "Drive115", regex: /captchaapi\.115\.com/g },
 	];
 	const Matched = MatchDomains.find(({ regex }) => regex.test(location.host));
 	if (!Matched?.domain) return;
@@ -213,6 +213,7 @@
 		}
 	}
 	class Apis {
+		// movie
 		static async movieImg(code) {
 			code = code.toUpperCase();
 
@@ -442,6 +443,7 @@
 			}
 			return magnets;
 		}
+		// drive
 		static async searchFile(search_value) {
 			const res = await request(
 				"https://webapi.115.com/files/search",
@@ -2404,7 +2406,7 @@
 				const cid = await this.driveCid();
 
 				if (magnet === "all") {
-					console.log("一键离线");
+					console.info("一键离线");
 				} else {
 					const res = await Apis.addTaskUrl({ url: magnet, wp_path_id: cid });
 					notify({
