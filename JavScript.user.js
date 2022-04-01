@@ -461,8 +461,10 @@
 			return magnets;
 		}
 		// drive
-		static async searchFile(params = {}) {
-			if (!params?.search_value?.trim()) return [];
+		static async searchVideo(params = { search_value: "" } | "") {
+			if (typeof params === "string") params = { search_value: params };
+			if (!params.search_value.trim()) return [];
+
 			const res = await request(
 				"https://webapi.115.com/files/search",
 				{
@@ -472,15 +474,22 @@
 					aid: 1,
 					cid: 0,
 					pick_code: "",
-					type: "",
+					type: 4,
 					source: "",
 					format: "json",
+					o: "user_ptime",
+					asc: 0,
+					star: "",
+					suffix: "",
 					...params,
 				},
 				"GET",
 				{ responseType: "json" }
 			);
-			return res?.data ?? [];
+
+			return (res.data ?? []).map(({ cid, fid, n, pc, t }) => {
+				return { cid, fid, n, pc, t };
+			});
 		}
 		static async getFile(params = {}) {
 			const res = await request(
@@ -492,12 +501,12 @@
 					asc: 0,
 					offset: 0,
 					show_dir: 1,
-					limit: 10000,
+					limit: 115,
 					code: "",
 					scid: "",
 					snap: 0,
 					natsort: 1,
-					star: 1,
+					record_open_time: 1,
 					source: "",
 					format: "json",
 					...params,
@@ -522,25 +531,6 @@
 				clickUrl: "http://115.com/?mode=login",
 			});
 		}
-		// driveMethods
-		static async searchFileForVideo(search_value) {
-			const res = await this.searchFile({
-				search_value,
-				type: 4,
-				o: "user_ptime",
-				asc: 0,
-				star: "",
-				suffix: "",
-			});
-			return res.map(({ cid, fid, n: name, pc: pickCode, play_long, t: date, te, tp }) => {
-				return { cid, fid, name, pickCode, play_long, date, timestamp: Math.max(te, tp) };
-			});
-		}
-		static async getFileCidByName(name) {
-			if (!name) return "";
-			const res = await this.getFile();
-			return res.find(({ n }) => n === name)?.cid ?? "";
-		}
 		static async addTaskUrl({ url, wp_path_id = "", sign, time }) {
 			const _sign = sign && time ? { sign, time } : await this.getSign();
 			if (!_sign) return;
@@ -551,18 +541,13 @@
 				"POST"
 			);
 		}
-		static getFileForVideoOfCid(cid = "") {
-			return this.getFile({
-				cid,
-				limit: 115,
-				record_open_time: 1,
-				star: "",
-				type: 4,
-				suffix: "",
-				custom_order: 0,
-				is_share: "",
-				fc_mix: "",
-			});
+		static getVideo(cid = "") {
+			return this.getFile({ cid, custom_order: 0, star: "", suffix: "", type: 4 });
+		}
+		static driveRename(res) {
+			const data = {};
+			for (const { fid, file_name } of res) data[`files_new_name[${fid}]`] = file_name;
+			return request("https://webapi.115.com/files/batch_rename", data, "POST");
 		}
 	}
 	class Common {
@@ -600,7 +585,6 @@
 				"D_VERIFY",
 				"D_RENAME",
 				// "D_UPIMG",
-				// "D_MOVE",
 			],
 			details: [
 				{
@@ -702,15 +686,15 @@
 					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "资源匹配 & 离线开关 (请确保已登录网盘)",
+					info: "资源匹配 & 离线开关 (需确保已登录网盘)",
 					defaultVal: true,
 				},
 				{
 					name: "下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "离线下载自定目录 cid，默认动态参数：<code>${云下载}</code>",
-					placeholder: "cid 或动态参数 (推荐 cid)",
+					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong><br><strong>动态参数</strong> 支持网盘根目录下文件夹，推荐使用 <strong>cid</strong><br>默认动态参数 <code>${云下载}</code>",
+					placeholder: "cid 或 动态参数",
 					defaultVal: "${云下载}",
 				},
 				{
@@ -724,15 +708,15 @@
 					name: "文件验证",
 					key: "D_VERIFY",
 					type: "number",
-					info: "离线下载文件验证，设置延迟秒数。0 不验证 (默认 3)；仅支持『一键离线』",
-					placeholder: "仅支持一位小数 ≥ 1.0",
+					info: "查询网盘验证离线下载结果，每间隔一秒<br>设置次数上限，理论上次数越多越精准<br>推荐 3 ~ 5，默认 3，『<strong>一键离线</strong>』可用",
+					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 3,
 				},
 				{
 					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: "离线下载文件重命名，动态参数：<code>${字幕}</code>，<code>${番号}</code>，<code>${标题}</code>；仅支持『一键离线』",
+					info: '离线下载文件重命名，需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母转大写。番号为必须值，如无参数设置将自动追加为前缀<br><code>${标题}</code> 页面标题，页面标题可能已包含番号，自行判断',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
@@ -743,18 +727,10 @@
 				// 	info: "『离线结果验证』成功后上传封面图",
 				// 	defaultVal: true,
 				// },
-				// {
-				// 	name: "移动目录",
-				// 	key: "D_MOVE",
-				// 	type: "input",
-				// 	info: "『离线结果验证』成功后移动资源至设置目录",
-				// 	placeholder: "对应网盘目录 cid",
-				// 	defaultVal: "",
-				// },
 			],
 		};
 		route = null;
-		pickCodePrefix = "https://v.anxia.com/?pickcode=";
+		pcUrl = "https://v.anxia.com/?pickcode=";
 
 		init() {
 			Store.init();
@@ -1375,6 +1351,7 @@
 		driveMatch = async ({ code, res }, start) => {
 			if (!this.D_MATCH) return;
 			start && start();
+			code = code.toUpperCase();
 			const codes = code.split(/-|_/).filter(Boolean);
 			const prefix = codes[0];
 
@@ -1384,17 +1361,17 @@
 					const RESOURCE = GM_getValue("RESOURCE", []);
 					let item = RESOURCE.find(item => item.prefix === prefix);
 					if (!item) {
-						item = { prefix, res: await Apis.searchFileForVideo(prefix) };
+						item = { prefix, res: await Apis.searchVideo(prefix) };
 						RESOURCE.push(item);
 						GM_setValue("RESOURCE", RESOURCE);
 					}
 					res = await this.driveMatch({ ...item, code });
 				}
 			} else {
-				let _res = res ?? (await Apis.searchFileForVideo(prefix));
+				let _res = res ?? (await Apis.searchVideo(prefix));
 				if (_res?.length) {
 					const regex = new RegExp(`${codes.join(".*")}`, "i");
-					_res = _res.filter(({ name, play_long }) => regex.test(name) && play_long);
+					_res = _res.filter(({ n }) => regex.test(n));
 				}
 				if (!res) Store.upDetail(code, { res: _res });
 				res = _res;
@@ -1405,19 +1382,130 @@
 		// D_CID
 		driveCid = async () => {
 			let cid = this.D_CID;
-			if (/^\$\{.+\}$/.test(cid)) cid = await Apis.getFileCidByName(cid.replace(/\$|\{|\}/g, ""));
+			if (/^\$\{.+\}$/.test(cid)) {
+				cid = cid.replace(/\$|\{|\}/g, "").trim();
+				const res = await Apis.getFile();
+				cid = res.find(({ n }) => n === cid)?.cid ?? "";
+			}
 			return cid;
 		};
 		// D_AUTO
 		driveAuto = () => {};
 		// D_VERIFY
-		driveVerify = () => {};
+		driveVerify = async ({ code, cid = "" }) => {
+			let verify = this.D_VERIFY <= 0;
+
+			for (let idx = 0; idx < this.D_VERIFY; idx++) {
+				await delay(1);
+
+				let res = await Apis.getVideo(cid);
+				res = await this.driveMatch({ code, res });
+
+				res = res.filter(({ t }) => t.startsWith(getDate()));
+				if (!res.length) continue;
+
+				const fids = (Store.getDetail(code)?.res ?? []).map(({ fid }) => fid);
+				res = res.filter(({ fid }) => !fids.includes(fid));
+				if (!res.length) continue;
+
+				verify = res;
+				break;
+			}
+
+			return verify;
+		};
 		// D_RENAME
-		driveRename = () => {};
+		driveRename = ({ cid, res, zh, code, title }) => {
+			let file_name = this.D_RENAME?.trim();
+			if (!file_name) return;
+
+			code = code.toUpperCase();
+			file_name = file_name
+				.replace(/\$\{字幕\}/g, zh ? "【中文字幕】" : "")
+				.replace(/\$\{番号\}/g, code)
+				.replace(/\$\{标题\}/g, title);
+
+			const codes = code.split(/-|_/).filter(Boolean);
+			const regex = new RegExp(`${codes.join(".*")}`, "i");
+			if (!regex.test(file_name)) file_name = `${code}${file_name}`;
+
+			res = res
+				.filter(item => item.ico)
+				.map(item => {
+					item.file_name = `${file_name}.${item.ico}`;
+					return item;
+				});
+
+			unique(res.map(item => item.cid).filter(item => item !== cid)).forEach(fid => res.push({ fid, file_name }));
+
+			return Apis.driveRename(res);
+		};
 		// D_UPIMG
 		// driveUpImg = () => {};
-		// D_MOVE
-		// driveMove = () => {};
+
+		driveOffline = async (e, { magnets, code, title }) => {
+			const { target } = e;
+			const { magnet: type } = target.dataset;
+			if (!type) return;
+
+			e.preventDefault();
+			e.stopPropagation();
+
+			const { classList } = target;
+			if (classList.contains("active")) return;
+
+			classList.add("active");
+			const originText = target.textContent;
+			target.textContent = "请求中...";
+
+			const wp_path_id = await this.driveCid();
+
+			if (type === "all") {
+				const magnetLen = magnets.length;
+
+				for (let index = 0; index < magnetLen; index++) {
+					const sign = await Apis.getSign();
+					if (!sign) break;
+
+					const isLast = index + 1 === magnetLen;
+					const { link: url, zh } = magnets[index];
+
+					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
+					if (!res?.state) {
+						if (!isLast) continue;
+						notify({ title: "一键离线任务失败", image: "fail" });
+						break;
+					}
+
+					const cid = wp_path_id;
+
+					res = await this.driveVerify({ code, cid });
+					if (!res) {
+						if (!isLast) continue;
+						notify({ title: "一键离线任务失败", image: "fail" });
+						break;
+					}
+
+					if (res?.length) await this.driveRename({ cid, res, zh, code, title });
+
+					notify({ title: "一键离线任务成功", image: "success" });
+					break;
+				}
+			} else if (type) {
+				const url = type;
+				const res = await Apis.addTaskUrl({ url, wp_path_id });
+				if (res) {
+					notify({
+						title: `离线任务添加${res.state ? "成功" : "失败"}`,
+						text: res.error_msg,
+						image: res.state ? "success" : "fail",
+					});
+				}
+			}
+
+			classList.remove("active");
+			target.textContent = originText;
+		};
 	}
 	class JavBus extends Common {
 		constructor() {
@@ -1430,7 +1518,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = ["D_AUTO", "D_RENAME"];
+		excludeMenu = ["D_AUTO"];
 		// styles
 		_style = `
         .ad-box {
@@ -1658,7 +1746,7 @@
 						if (!target.classList.contains("x-player")) return;
 						e.preventDefault();
 						e.stopPropagation();
-						GM_openInTab(`${this.pickCodePrefix}${target.dataset.code}`, { setParent: true, active: true });
+						GM_openInTab(`${this.pcUrl}${target.dataset.code}`, { setParent: true, active: true });
 					});
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
@@ -1728,7 +1816,7 @@
 					const frame = item.querySelector(".photo-frame");
 					frame.classList.add("x-player");
 					frame.setAttribute("title", "点击播放");
-					frame.setAttribute("data-code", res[0].pickCode);
+					frame.setAttribute("data-code", res[0].pc);
 					item.querySelector(".x-title").classList.add("x-matched");
 				}
 			},
@@ -2109,6 +2197,7 @@
 				this._movieStar();
 
 				this._driveMatch();
+				DOC.querySelector(".x-offline")?.addEventListener("click", e => this._driveOffline(e));
 
 				const tableObs = new MutationObserver((_, obs) => {
 					obs.disconnect();
@@ -2256,6 +2345,7 @@
 			},
 			async _driveMatch() {
 				const start = () => {
+					if (DOC.querySelector(".x-res")) return;
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
@@ -2269,12 +2359,10 @@
 				resNode.innerHTML = !res?.length
 					? "暂无网盘资源"
 					: res.reduce(
-							(acc, { pickCode, date, name }) =>
-								`${acc}<div class="x-line"><a href="${this.pickCodePrefix}${pickCode}" target="_blank" title="${date} / ${name}">${name}</a></div>`,
+							(acc, { pc, t, n }) =>
+								`${acc}<div class="x-line"><a href="${this.pcUrl}${pc}" target="_blank" title="${t} / ${n}">${n}</a></div>`,
 							""
 					  );
-
-				DOC.querySelector(".x-offline").addEventListener("click", e => this._driveOffline(e));
 			},
 			refactorTable() {
 				const table = DOC.querySelector("#magnet-table");
@@ -2428,73 +2516,9 @@
 				);
 			},
 			async _driveOffline(e) {
-				const { target } = e;
-				const { magnet } = target.dataset;
-
-				if (!magnet) return;
-
-				e.preventDefault();
-				e.stopPropagation();
-
-				const { classList } = target;
-				if (classList.contains("active")) return;
-
-				classList.add("active");
-				const originText = target.textContent;
-				target.textContent = "请求中...";
-
-				const wp_path_id = await this.driveCid();
-
-				if (magnet === "all") {
-					const list = this.magnets;
-					const listLen = list.length;
-
-					const { code } = this.params;
-					let detailRes = Store.getDetail(code)?.res;
-					detailRes = detailRes.map(item => item.fid);
-
-					for (let index = 0; index < listLen; index++) {
-						const sign = await Apis.getSign();
-						if (!sign) break;
-
-						const { link: url } = list[index];
-						const taskRes = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
-						if (!taskRes?.state) {
-							if (index + 1 !== listLen) continue;
-							notify({ title: "一键离线任务失败", image: "fail" });
-							break;
-						}
-
-						let offlineRes = "";
-						for (let idx = 0; idx < this.D_VERIFY; idx++) {
-							let files = await Apis.getFileForVideoOfCid(wp_path_id);
-							files.forEach(item => {
-								item.name = item.n;
-							});
-							offlineRes = await this.driveMatch({ code, res: files });
-							offlineRes = offlineRes.filter(item => !detailRes.includes(item.fid));
-							if (offlineRes.length) break;
-							await delay(1);
-						}
-						if (!offlineRes.length) continue;
-						notify({ title: "一键离线任务成功", image: "success" });
-						break;
-					}
-				} else if (magnet) {
-					const taskRes = await Apis.addTaskUrl({ url: magnet, wp_path_id });
-					if (taskRes) {
-						notify({
-							title: `离线任务添加${taskRes.state ? "成功" : "失败"}`,
-							text: taskRes.error_msg,
-							image: taskRes.state ? "success" : "fail",
-						});
-					}
-				}
-
-				classList.remove("active");
-				target.textContent = originText;
-
-				location.reload();
+				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
+				await delay(1);
+				this._driveMatch();
 			},
 		};
 	}
