@@ -691,7 +691,7 @@
 					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "资源匹配 & 离线开关 (需确保已登录网盘)",
+					info: "资源匹配 & 离线开关 (<strong>需确保已登录网盘</strong>)",
 					defaultVal: true,
 				},
 				{
@@ -2527,7 +2527,6 @@
 			},
 		};
 	}
-
 	class Drive115 {
 		contentLoaded() {
 			window.focus();
