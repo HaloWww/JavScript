@@ -188,7 +188,7 @@
 			...msg,
 			text: msg?.text ?? GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
-			onclick: msg?.clickUrl ? () => GM_openInTab(msg.clickUrl, { active: true, setParent: true }) : () => {},
+			onclick: msg?.clickUrl ? () => GM_openInTab(msg.clickUrl, { setParent: true, active: true }) : () => {},
 		});
 	};
 	const verify = () => {
