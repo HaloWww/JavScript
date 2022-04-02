@@ -1235,6 +1235,7 @@
 		listMovieImgType = (node, condition) => {
 			const img = node.querySelector("img");
 			if (!this.L_MIT || !img) return;
+
 			node.classList.add("x-cover");
 			img.loading = "lazy";
 			const { src = "" } = img;
@@ -1264,6 +1265,7 @@
 				nextURL = node.querySelector(path)?.href;
 			};
 			updateNextURL();
+
 			const infScroll = new InfiniteScroll(container, {
 				path: () => nextURL,
 				checkLastPage: path,
@@ -1271,6 +1273,7 @@
 				outlayer: msnry,
 				history: false,
 			});
+
 			infScroll?.on("request", async (_, fetchPromise) => {
 				const { body } = await fetchPromise.then();
 				if (body) updateNextURL(body);
@@ -1297,6 +1300,7 @@
 		// M_IMG
 		movieImg = async ({ code }, start) => {
 			if (!this.M_IMG) return;
+
 			start && start();
 			let img = Store.getDetail(code)?.img;
 			if (!img) {
@@ -1308,6 +1312,7 @@
 		// M_VIDEO
 		movieVideo = async ({ code, studio }, start) => {
 			if (!this.M_VIDEO) return;
+
 			start && start();
 			let video = Store.getDetail(code)?.video;
 			if (!video) {
@@ -1319,6 +1324,7 @@
 		// M_PLAYER
 		moviePlayer = async ({ code }, start) => {
 			if (!this.M_PLAYER) return;
+
 			start && start();
 			let player = Store.getDetail(code)?.player;
 			if (!player) {
@@ -1330,6 +1336,7 @@
 		// M_TITLE
 		movieTitle = async ({ code, title }, start) => {
 			if (!this.M_TITLE) return;
+
 			start && start();
 			let transTitle = Store.getDetail(code)?.transTitle;
 			if (!transTitle) {
@@ -1341,6 +1348,7 @@
 		// M_STAR
 		movieStar = async ({ code, star: hasStar }, start) => {
 			if (!this.M_STAR || hasStar) return;
+
 			start && start();
 			let star = Store.getDetail(code)?.star;
 			if (!star?.length) {
@@ -1352,6 +1360,7 @@
 		// M_SORT
 		movieSort = (magnets, start) => {
 			if (!this.M_SORT) return magnets;
+
 			start && start();
 			return magnets.length <= 1
 				? magnets
@@ -1367,6 +1376,7 @@
 		// M_MAGNET
 		movieMagnet = async ({ code }, start) => {
 			if (!this.M_MAGNET) return;
+
 			start && start();
 			let magnet = Store.getDetail(code)?.magnet;
 			if (!magnet?.length) {
@@ -1379,6 +1389,7 @@
 		// D_MATCH
 		driveMatch = async ({ code, res }, start) => {
 			if (!this.D_MATCH) return;
+
 			start && start();
 			code = code.toUpperCase();
 			const codes = code.split(/-|_/).filter(Boolean);
