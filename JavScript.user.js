@@ -36,6 +36,8 @@
 
 /**
  * TODO:
+ * 脚本 icon, css, bootstrap 色彩视觉协调统一?
+ *
  * 列表 标题等高模式
  * 列表 卡片宽度设置?
  * 列表 下载封面?
@@ -574,11 +576,9 @@
 				"G_DARK",
 				"G_SEARCH",
 				"G_CLICK",
-
 				"L_MIT",
 				"L_MTL",
 				"L_SCROLL",
-
 				"M_IMG",
 				"M_VIDEO",
 				"M_PLAYER",
@@ -586,13 +586,11 @@
 				"M_STAR",
 				"M_SORT",
 				"M_MAGNET",
-
 				"D_MATCH",
 				"D_CID",
-				"D_AUTO",
 				"D_VERIFY",
 				"D_RENAME",
-				// "D_UPIMG",
+				"D_UPIMG",
 			],
 			details: [
 				{
@@ -694,29 +692,22 @@
 					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "资源匹配 & 离线开关 (<strong>需确保已登录网盘</strong>)",
+					info: "资源匹配 & 离线开关 (<strong>确保已登录网盘</strong>)",
 					defaultVal: true,
 				},
 				{
 					name: "下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong><br><strong>动态参数</strong> 支持网盘根目录下文件夹，推荐使用 <strong>cid</strong><br>默认动态参数 <code>${云下载}</code>",
+					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong>，建议 <strong>cid</strong> 效率更高<br><strong>动态参数</strong> 支持网盘根目录下文件夹名称<br>默认动态参数 <code>${云下载}</code>",
 					placeholder: "cid 或 动态参数",
 					defaultVal: "${云下载}",
-				},
-				{
-					name: "自动化",
-					key: "D_AUTO",
-					type: "switch",
-					info: "『一键离线』静默执行",
-					defaultVal: false,
 				},
 				{
 					name: "文件验证",
 					key: "D_VERIFY",
 					type: "number",
-					info: "查询网盘验证离线下载结果，每间隔一秒<br>设置次数上限，理论上次数越多越精准<br>推荐 3 ~ 5，默认 3，『<strong>一键离线</strong>』可用",
+					info: "『<strong>一键离线</strong>』可用，查询以验证离线下载结果，每次间隔一秒<br>设置次数上限，理论上次数越多验证越精准<br>建议 3 ~ 5，默认 3",
 					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 3,
 				},
@@ -724,17 +715,17 @@
 					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: '离线下载文件重命名，需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母转大写。番号为必须值，如无参数设置将自动追加为前缀<br><code>${标题}</code> 页面标题，页面标题可能已包含番号，自行判断',
+					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，文件重命名，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母转大写；番号必须，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，页面标题可能已包含番号，自行判断',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
-				// {
-				// 	name: "上传封面",
-				// 	key: "D_UPIMG",
-				// 	type: "switch",
-				// 	info: "『离线结果验证』成功后上传封面图",
-				// 	defaultVal: true,
-				// },
+				{
+					name: "上传封面",
+					key: "D_UPIMG",
+					type: "switch",
+					info: "需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，自动上传封面图",
+					defaultVal: true,
+				},
 			],
 		};
 		route = null;
@@ -933,7 +924,7 @@
                                         控制面板
                                         -
                                         <a
-                                            href="https://sleazyfork.org/zh-CN/scripts/435360-javscript"
+                                            href="https://sleazyfork.org/scripts/435360"
                                             class="link-secondary text-decoration-none"
                                             target="_blank"
                                         >
@@ -1397,8 +1388,6 @@
 			}
 			return cid;
 		};
-		// D_AUTO
-		driveAuto = () => {};
 		// D_VERIFY
 		driveVerify = async ({ code, cid = "" }) => {
 			let verify = this.D_VERIFY <= 0;
@@ -1435,7 +1424,7 @@
 
 			const codes = code.split(/-|_/).filter(Boolean);
 			const regex = new RegExp(`${codes.join(".*")}`, "i");
-			if (!regex.test(file_name)) file_name = `${code}${file_name}`;
+			if (!regex.test(file_name)) file_name = `${code} - ${file_name}`;
 
 			res = res
 				.filter(item => item.ico)
@@ -1449,7 +1438,7 @@
 			return Apis.driveRename(res);
 		};
 		// D_UPIMG
-		// driveUpImg = () => {};
+		driveUpImg = () => {};
 
 		driveOffline = async (e, { magnets, code, title }) => {
 			const { target } = e;
@@ -1469,6 +1458,9 @@
 			const wp_path_id = await this.driveCid();
 
 			if (type === "all") {
+				const warnMsg = { title: "一键离线任务失败", image: "warn" };
+				const successMsg = { title: "一键离线任务成功", image: "success", timeout: 3000 };
+
 				const magnetLen = magnets.length;
 
 				for (let index = 0; index < magnetLen; index++) {
@@ -1481,7 +1473,7 @@
 					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
 					if (!res?.state) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "warn" });
+						notify(warnMsg);
 						break;
 					}
 
@@ -1490,13 +1482,17 @@
 					res = await this.driveVerify({ code, cid });
 					if (!res) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "warn" });
+						notify(warnMsg);
 						break;
 					}
 
-					if (res?.length) await this.driveRename({ cid, res, zh, code, title });
+					if (res?.length) {
+						successMsg.text = "点击跳转目录";
+						successMsg.clickUrl = `https://115.com/?cid=${res[0].cid}&offset=0&mode=wangpan`;
+						await this.driveRename({ cid, res, zh, code, title });
+					}
 
-					notify({ title: "一键离线任务成功", image: "success" });
+					notify(successMsg);
 					break;
 				}
 			} else if (type) {
@@ -1505,8 +1501,9 @@
 				if (res) {
 					notify({
 						title: `离线任务添加${res.state ? "成功" : "失败"}`,
-						text: res.error_msg,
+						text: res.error_msg ?? "",
 						image: res.state ? "info" : "warn",
+						highlight: false,
 					});
 				}
 			}
@@ -1526,7 +1523,7 @@
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = ["D_AUTO"];
+		excludeMenu = [];
 		// styles
 		_style = `
         .ad-box {
@@ -2525,7 +2522,7 @@
 			},
 			async _driveOffline(e) {
 				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
-				await delay(1);
+				await delay(0.6);
 				this._driveMatch();
 			},
 		};
