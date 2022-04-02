@@ -3,15 +3,16 @@
 // @namespace       JavScript@blc
 // @version         3.0.0
 // @author          blc
-// @description     一站式体验, JavBus & JavDB 兼容
-// @icon            https://z3.ax1x.com/2021/10/15/53gMFS.png
+// @description     一站式体验，JavBus & JavDB 兼容
+// @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
 // @include         *
 // @require         https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js
 // @require         https://unpkg.com/infinite-scroll@4/dist/infinite-scroll.pkgd.min.js
-// @resource        fail https://z3.ax1x.com/2021/10/15/53gcex.png
-// @resource        info https://z3.ax1x.com/2021/10/15/53g2TK.png
-// @resource        success https://z3.ax1x.com/2021/10/15/53gqTf.png
-// @resource        play https://s4.ax1x.com/2022/01/12/7nYuKe.png
+// @resource        play https://s1.ax1x.com/2022/04/01/q5lsRx.png
+// @resource        success https://s1.ax1x.com/2022/04/01/q5l2LD.png
+// @resource        info https://s1.ax1x.com/2022/04/01/q5lyz6.png
+// @resource        warn https://s1.ax1x.com/2022/04/01/q5lgsO.png
+// @resource        error https://s1.ax1x.com/2022/04/01/q5lcQK.png
 // @connect         *
 // @run-at          document-start
 // @grant           GM_registerMenuCommand
@@ -532,7 +533,7 @@
 			notify({
 				title: "请求失败，115未登录",
 				text: "请登录后重试",
-				image: "fail",
+				image: "error",
 				clickUrl: "http://115.com/?mode=login",
 			});
 		}
@@ -1478,7 +1479,7 @@
 					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
 					if (!res?.state) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "fail" });
+						notify({ title: "一键离线任务失败", image: "error" });
 						break;
 					}
 
@@ -1487,7 +1488,7 @@
 					res = await this.driveVerify({ code, cid });
 					if (!res) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "fail" });
+						notify({ title: "一键离线任务失败", image: "error" });
 						break;
 					}
 
@@ -1503,7 +1504,7 @@
 					notify({
 						title: `离线任务添加${res.state ? "成功" : "失败"}`,
 						text: res.error_msg,
-						image: res.state ? "success" : "fail",
+						image: res.state ? "success" : "error",
 					});
 				}
 			}
