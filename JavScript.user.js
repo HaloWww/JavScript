@@ -46,7 +46,7 @@
  * 详情 磁链字幕额外过滤
  *
  * 网盘 自定义一键离线
- * 网盘 封面图上传
+ * 网盘 封面图上传 ×
  * 网盘 源码播放?
  *
  * 其他 发送至 aria2 下载?
@@ -61,7 +61,6 @@
 	];
 	const Matched = MatchDomains.find(({ regex }) => regex.test(location.host));
 	if (!Matched?.domain) return;
-
 	// document
 	const DOC = document;
 	DOC.create = (tag, attr = {}, child) => {
@@ -71,20 +70,18 @@
 		typeof child === "object" && element.appendChild(child);
 		return element;
 	};
-
 	// request
 	const request = (url, data = {}, method = "GET", params = {}) => {
 		if (!url) return;
 		method = method ? method.toUpperCase().trim() : "GET";
 		if (!["GET", "POST"].includes(method)) return;
-
 		if (Object.prototype.toString.call(data) === "[object Object]") {
 			data = Object.keys(data).reduce((pre, cur) => {
 				return `${pre ? `${pre}&` : pre}${cur}=${encodeURIComponent(data[cur])}`;
 			}, "");
 		}
-
 		if (method === "GET") {
+			params.responseType = params.responseType ?? "document";
 			if (data) {
 				if (url.includes("?")) {
 					url = `${url}${url.charAt(url.length - 1) === "&" ? "" : "&"}${data}`;
@@ -92,34 +89,22 @@
 					url = `${url}?${data}`;
 				}
 			}
-			params.responseType = params.responseType ?? "document";
 		}
 		if (method === "POST") {
 			params.responseType = params.responseType ?? "json";
 			const headers = params.headers ?? {};
 			params.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", ...headers };
 		}
-
-		return new Promise((resolve, reject) => {
+		return new Promise(resolve => {
 			GM_xmlhttpRequest({
 				url,
 				data,
 				method,
 				timeout: 20000,
-				onabort: () => {
-					console.warn(`请求被中止`);
-				},
-				onerror: () => {
-					console.warn(`请求错误，检查接口`);
-				},
-				ontimeout: () => {
-					console.warn(`请求超时，检查网络`);
-				},
 				onload: ({ status, response }) => {
 					if (response?.errcode === 911) verify();
 					if (status === 404) response = false;
-
-					if (response && ["", "text"].includes(params.responseType ?? "")) {
+					if (response && ["", "text"].includes(params.responseType)) {
 						const htmlRegex = /<\/?[a-z][\s\S]*>/i;
 						const jsonRegex = /^{.*}$/;
 						if (htmlRegex.test(response)) {
@@ -128,14 +113,12 @@
 							response = JSON.parse(response);
 						}
 					}
-
 					resolve(response);
 				},
 				...params,
 			});
 		});
 	};
-
 	// utils
 	const getDate = timestamp => {
 		const date = timestamp ? new Date(timestamp) : new Date();
@@ -152,15 +135,15 @@
 		node.appendChild(target);
 	};
 	const handleCopyTxt = (e, text) => {
-		if (!e?.target?.dataset?.copy) return;
+		if (!e?.target?.dataset?.copy?.trim()) return;
 		e.preventDefault();
 		e.stopPropagation();
 		const { target } = e;
-		GM_setClipboard(target.dataset.copy);
-		const original = target.textContent ?? "";
+		GM_setClipboard(target.dataset.copy.trim());
+		const originText = target.textContent ?? "";
 		target.textContent = text ?? "成功";
 		const timer = setTimeout(() => {
-			target.textContent = original;
+			target.textContent = originText;
 			clearTimeout(timer);
 		}, 400);
 		return 1;
@@ -186,7 +169,6 @@
 	};
 	const unique = (arr, key) => {
 		if (!key) return Array.from(new Set(arr));
-
 		arr = arr.map(item => {
 			item[key] = item[key]?.toLowerCase();
 			return item;
@@ -216,7 +198,7 @@
 		);
 	};
 	const delay = n => new Promise(r => setTimeout(r, n * 1000));
-
+	// store
 	class Store {
 		static init() {
 			const date = getDate();
@@ -236,16 +218,15 @@
 			GM_setValue("DETAILS", details);
 		}
 	}
+	// apis
 	class Apis {
 		// movie
 		static async movieImg(code) {
 			code = code.toUpperCase();
-
 			const [blogJav, javStore] = await Promise.all([
 				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
 				request(`https://javstore.net/search/${code}.html`),
 			]);
-
 			const [bjRes, jsRes] = await Promise.all([
 				request(
 					`http://webcache.googleusercontent.com/search?q=cache:${
@@ -254,7 +235,6 @@
 				),
 				request(javStore?.querySelector("#content_news li a")?.href),
 			]);
-
 			let bjImg = "";
 			if (bjRes) {
 				bjImg = bjRes
@@ -263,12 +243,10 @@
 					.replace("//t", "//img")
 					.replace("thumbs", "images");
 			}
-
 			return bjImg || jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") || "";
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
-
 			if (studio) {
 				const matchList = [
 					{
@@ -292,12 +270,10 @@
 				const matched = matchList.find(({ name }) => name === studio);
 				if (matched) return matched.match.replace(/%s/g, matched.trans ? matched.trans(code) : code);
 			}
-
 			let [r18, xrmoo] = await Promise.all([
 				request(`https://www.r18.com/common/search/order=match/searchword=${code}/`),
 				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
 			]);
-
 			r18 = r18?.querySelector("a.js-view-sample");
 			return (
 				r18?.getAttribute("data-video-high") ||
@@ -313,7 +289,6 @@
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
 			const codeReg = new RegExp(code, "gi");
-
 			const matchList = [
 				{
 					site: "Netflav",
@@ -347,20 +322,16 @@
 					filter: { name: e => e?.querySelector(".video-title")?.textContent },
 				},
 			];
-
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
-
 			const players = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
-
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
 				if (!node?.length) continue;
-
 				for (const item of node) {
 					const player = { from: site };
 					Object.keys(filter).forEach(key => {
@@ -438,20 +409,16 @@
 					},
 				},
 			];
-
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
-
 			const magnets = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
-
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
 				if (!node?.length) continue;
-
 				for (const item of node) {
 					const magnet = { from: site };
 					Object.keys(filter).forEach(key => {
@@ -471,7 +438,6 @@
 		static async searchVideo(params = { search_value: "" } | "") {
 			if (typeof params === "string") params = { search_value: params };
 			if (!params.search_value.trim()) return [];
-
 			const res = await request(
 				"https://webapi.115.com/files/search",
 				{
@@ -493,7 +459,6 @@
 				"GET",
 				{ responseType: "json" }
 			);
-
 			return (res.data ?? []).map(({ cid, fid, n, pc, t }) => {
 				return { cid, fid, n, pc, t };
 			});
@@ -1435,8 +1400,6 @@
 
 			return Apis.driveRename(res);
 		};
-		// D_UPIMG
-		driveUpImg = () => {};
 
 		driveOffline = async (e, { magnets, code, title }) => {
 			const { target } = e;
@@ -2523,9 +2486,11 @@
 				);
 			},
 			async _driveOffline(e) {
-				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
-				await delay(0.6);
-				this._driveMatch();
+				// await this.driveOffline(e, { ...this.params, magnets: this.magnets });
+				// await delay(0.6);
+				// this._driveMatch();
+
+				this.driveUpImg();
 			},
 		};
 	}
