@@ -1166,16 +1166,19 @@
 		// G_SEARCH
 		globalSearch = (selectors, pathname) => {
 			if (!this.G_SEARCH) return;
+
 			DOC.addEventListener("keydown", async e => {
 				if (e.ctrlKey && e.keyCode === 191) {
 					const text = (await navigator.clipboard.readText()).trim();
 					if (!text) return;
+
 					GM_openInTab(`${location.origin}${pathname.replace("%s", text)}`, {
 						setParent: true,
 						active: true,
 					});
 				}
 			});
+
 			DOC.addEventListener("keyup", e => {
 				if (e.keyCode === 191 && !["INPUT", "TEXTAREA"].includes(DOC.activeElement.nodeName)) {
 					DOC.querySelector(selectors).focus();
@@ -1185,33 +1188,45 @@
 		// G_CLICK
 		globalClick = (selectors, node = DOC) => {
 			if (!this.G_CLICK) return;
+
 			const getTarget = e => {
 				const item = e.target.closest(selectors);
 				return !item?.href || !node.contains(item) ? false : item;
 			};
+
 			node.addEventListener("click", e => {
 				const target = getTarget(e);
 				if (!target) return;
 				e.preventDefault();
 				GM_openInTab(target.href, { setParent: true, active: true });
 			});
+
 			let _event;
+
 			node.addEventListener("mousedown", e => {
 				if (e.button !== 2) return;
+
 				const target = getTarget(e);
 				if (!target) return;
+
 				e.preventDefault();
+
 				target.oncontextmenu = e => e.preventDefault();
 				_event = e;
 			});
+
 			node.addEventListener("mouseup", e => {
 				if (e.button !== 2) return;
+
 				const target = getTarget(e);
 				if (!target || !_event) return;
+
 				e.preventDefault();
+
 				const { clientX, clientY } = e;
 				const { clientX: _clientX, clientY: _clientY } = _event;
 				if (Math.abs(clientX - _clientX) + Math.abs(clientY - _clientY) > 5) return;
+
 				GM_openInTab(target.href, { setParent: true, active: false });
 			});
 		};
@@ -1774,8 +1789,10 @@
 					_waterfall.addEventListener("click", e => {
 						const { target } = e;
 						if (!target.classList.contains("x-player")) return;
+
 						e.preventDefault();
 						e.stopPropagation();
+
 						GM_openInTab(`${this.pcUrl}${target.dataset.code}`, { setParent: true, active: true });
 					});
 				}
@@ -1783,6 +1800,7 @@
 
 				const infScroll = this.listScroll(_waterfall, ".item", "#next");
 				if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
+
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
 					if (!body) return;
@@ -1956,7 +1974,6 @@
                     bottom: 20px;
                 }
                 `;
-
 				this.globalDark(`${this.style}${style}`);
 			},
 			contentLoaded() {
