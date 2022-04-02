@@ -8,7 +8,7 @@
 // @include         *
 // @require         https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js
 // @require         https://unpkg.com/infinite-scroll@4/dist/infinite-scroll.pkgd.min.js
-// @resource        play https://s1.ax1x.com/2022/04/01/q5lsRx.png
+// @resource        play https://s4.ax1x.com/2022/01/12/7nYuKe.png
 // @resource        success https://s1.ax1x.com/2022/04/01/q5l2LD.png
 // @resource        info https://s1.ax1x.com/2022/04/01/q5lyz6.png
 // @resource        warn https://s1.ax1x.com/2022/04/01/q5lgsO.png
@@ -37,6 +37,7 @@
 /**
  * TODO:
  * 列表 标题等高模式
+ * 列表 卡片宽度设置?
  * 列表 下载封面?
  * 列表 数据聚合?
  *
@@ -195,8 +196,8 @@
 	const notify = msg => {
 		GM_notification({
 			highlight: true,
-			silent: false,
-			timeout: 3000,
+			silent: true,
+			timeout: 2000,
 			...msg,
 			text: msg?.text ?? GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
@@ -532,9 +533,10 @@
 			if (state) return { sign, time };
 			notify({
 				title: "请求失败，115未登录",
-				text: "请登录后重试",
+				text: "点击跳转登录",
 				image: "error",
 				clickUrl: "http://115.com/?mode=login",
+				timeout: 3000,
 			});
 		}
 		static async addTaskUrl({ url, wp_path_id = "", sign, time }) {
@@ -1138,7 +1140,7 @@
             background-color: rgba(0, 0, 0, .2);
             background-position: center;
             background-repeat: no-repeat;
-            opacity: .8;
+            opacity: .9;
             background-image: url(${GM_getResourceURL("play")});
             background-size: 40px;
         }
@@ -1479,7 +1481,7 @@
 					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
 					if (!res?.state) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "error" });
+						notify({ title: "一键离线任务失败", image: "warn" });
 						break;
 					}
 
@@ -1488,7 +1490,7 @@
 					res = await this.driveVerify({ code, cid });
 					if (!res) {
 						if (!isLast) continue;
-						notify({ title: "一键离线任务失败", image: "error" });
+						notify({ title: "一键离线任务失败", image: "warn" });
 						break;
 					}
 
@@ -1504,7 +1506,7 @@
 					notify({
 						title: `离线任务添加${res.state ? "成功" : "失败"}`,
 						text: res.error_msg,
-						image: res.state ? "success" : "error",
+						image: res.state ? "info" : "warn",
 					});
 				}
 			}
