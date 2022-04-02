@@ -36,10 +36,10 @@
 
 /**
  * TODO:
- * 脚本 icon, css, bootstrap 视觉调整?
+ * 脚本 icon, css, bootstrap(精简) 视觉调整?
  * 列表 标题等高模式
- * 列表 数据聚合?
  * 详情 磁链字幕额外过滤
+ * 列表 数据聚合?
  * 其他 发送至 aria2 下载?
  */
 
@@ -1285,6 +1285,7 @@
 				textContent = noMore;
 			}
 			status.textContent = textContent;
+
 			infScroll?.once("last", () => {
 				status.textContent = noMore;
 			});
@@ -1778,15 +1779,17 @@
 				const waterfall = DOC.querySelector("#waterfall");
 				if (!waterfall) return;
 
+				const isStarDetail = /^\/(uncensored\/)?star\/\w+/i.test(location.pathname);
+
 				const _waterfall = waterfall.cloneNode(true);
 				_waterfall.removeAttribute("style");
 				_waterfall.setAttribute("class", "x-show");
 				const items = this.modifyItem(_waterfall);
 
 				const itemsLen = items?.length;
-				const isStarDetail = /^\/(uncensored\/)?star\/\w+/i.test(location.pathname);
 				if (itemsLen) {
 					_waterfall.innerHTML = "";
+
 					for (let index = 0; index < itemsLen; index++) {
 						if (isStarDetail && !index) continue;
 						_waterfall.appendChild(items[index]);
@@ -2232,6 +2235,7 @@
 					targetNode.classList.toggle("x-in");
 
 					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v?.pause());
+
 					const { nodeName, src } = targetNode;
 					if (nodeName === "VIDEO") {
 						targetNode.focus();
@@ -2248,7 +2252,6 @@
 
 				const start = () => {
 					if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
-
 					switcher.insertAdjacentHTML(
 						"beforeend",
 						`<div class="btn-group btn-group-sm" role="group" title="查询中...">
@@ -2263,6 +2266,7 @@
 
 				const nodeParent = node.parentNode;
 				if (!src) return nodeParent.setAttribute("title", "暂无资源");
+
 				nodeParent.removeAttribute("title");
 				node.removeAttribute("disabled");
 
@@ -2275,6 +2279,7 @@
 					});
 				} else {
 					const item = DOC.create(type, { src, id, class: "x-contain" });
+
 					if (type === "video") {
 						item.controls = true;
 						item.currentTime = 3;
@@ -2287,6 +2292,7 @@
 							video.paused ? video.play() : video.pause();
 						});
 					}
+
 					DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 				}
 			},
@@ -2312,6 +2318,7 @@
 				const star = await this.movieStar(this.params, start);
 				const starNode = DOC.querySelector(".x-star");
 				if (!starNode) return;
+
 				starNode.innerHTML = !star?.length
 					? "暂无演员数据"
 					: star.reduce(
@@ -2323,6 +2330,7 @@
 			async _driveMatch() {
 				const start = () => {
 					if (DOC.querySelector(".x-res")) return;
+
 					GM_addStyle(`tbody a[data-magnet] { display: inline !important; }`);
 					DOC.querySelector(".info").insertAdjacentHTML(
 						"beforeend",
@@ -2333,6 +2341,7 @@
 				const res = await this.driveMatch(this.params, start);
 				const resNode = DOC.querySelector(".x-res");
 				if (!resNode) return;
+
 				resNode.innerHTML = !res?.length
 					? "暂无网盘资源"
 					: res.reduce(
@@ -2401,6 +2410,7 @@
 						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力搜索</span><span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 自动去重</span>`
 					);
 				};
+
 				const magnets = await this.movieMagnet(this.params, start);
 				if (magnets?.length) this.refactorTd(magnets);
 			},
@@ -2434,6 +2444,7 @@
 				copyAll.querySelector("a").addEventListener("click", e => {
 					e.preventDefault();
 					e.stopPropagation();
+
 					GM_setClipboard(this.magnets.map(magnet => magnet.link).join("\n"));
 					const { target } = e;
 					target.textContent = "复制成功";
@@ -2494,7 +2505,7 @@
 			},
 			async _driveOffline(e) {
 				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
-				await delay(0.6);
+				await delay(1);
 				this._driveMatch();
 			},
 		};
