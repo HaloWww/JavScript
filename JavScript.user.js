@@ -45,10 +45,6 @@
  *
  * 详情 磁链字幕额外过滤
  *
- * 网盘 自定义一键离线
- * 网盘 封面图上传 ×
- * 网盘 源码播放?
- *
  * 其他 发送至 aria2 下载?
  */
 
@@ -61,6 +57,7 @@
 	];
 	const Matched = MatchDomains.find(({ regex }) => regex.test(location.host));
 	if (!Matched?.domain) return;
+
 	// document
 	const DOC = document;
 	DOC.create = (tag, attr = {}, child) => {
@@ -70,16 +67,20 @@
 		typeof child === "object" && element.appendChild(child);
 		return element;
 	};
+
 	// request
 	const request = (url, data = {}, method = "GET", params = {}) => {
 		if (!url) return;
+
 		method = method ? method.toUpperCase().trim() : "GET";
 		if (!["GET", "POST"].includes(method)) return;
+
 		if (Object.prototype.toString.call(data) === "[object Object]") {
 			data = Object.keys(data).reduce((pre, cur) => {
 				return `${pre ? `${pre}&` : pre}${cur}=${encodeURIComponent(data[cur])}`;
 			}, "");
 		}
+
 		if (method === "GET") {
 			params.responseType = params.responseType ?? "document";
 			if (data) {
@@ -95,6 +96,7 @@
 			const headers = params.headers ?? {};
 			params.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", ...headers };
 		}
+
 		return new Promise(resolve => {
 			GM_xmlhttpRequest({
 				url,
@@ -119,6 +121,7 @@
 			});
 		});
 	};
+
 	// utils
 	const getDate = timestamp => {
 		const date = timestamp ? new Date(timestamp) : new Date();
@@ -136,16 +139,20 @@
 	};
 	const handleCopyTxt = (e, text) => {
 		if (!e?.target?.dataset?.copy?.trim()) return;
+
 		e.preventDefault();
 		e.stopPropagation();
+
 		const { target } = e;
 		GM_setClipboard(target.dataset.copy.trim());
 		const originText = target.textContent ?? "";
 		target.textContent = text ?? "成功";
+
 		const timer = setTimeout(() => {
 			target.textContent = originText;
 			clearTimeout(timer);
 		}, 400);
+
 		return 1;
 	};
 	const transToBytes = sizeStr => {
@@ -158,8 +165,10 @@
 			{ unit: /mib/gi, transform: size => size * Math.pow(1024, 2) },
 			{ unit: /gib/gi, transform: size => size * Math.pow(1024, 3) },
 		];
+
 		const size = sizeStr.replace(/[a-zA-Z\s]/g, "");
 		if (size <= 0) return 0;
+
 		return (
 			sizer
 				.find(({ unit }) => unit.test(sizeStr))
@@ -169,6 +178,7 @@
 	};
 	const unique = (arr, key) => {
 		if (!key) return Array.from(new Set(arr));
+
 		arr = arr.map(item => {
 			item[key] = item[key]?.toLowerCase();
 			return item;
@@ -191,6 +201,7 @@
 		const w = 375;
 		const t = (window.screen.availHeight - h) / 2;
 		const l = (window.screen.availWidth - w) / 2;
+
 		window.open(
 			`https://captchaapi.115.com/?ac=security_code&type=web&cb=Close911_${new Date().getTime()}`,
 			"验证账号",
@@ -198,12 +209,14 @@
 		);
 	};
 	const delay = n => new Promise(r => setTimeout(r, n * 1000));
+
 	// store
 	class Store {
 		static init() {
 			const date = getDate();
 			const cdKey = "CD";
 			if (GM_getValue(cdKey, "") === date) return;
+
 			GM_setValue(cdKey, date);
 			GM_setValue("DETAILS", {});
 			GM_setValue("RESOURCE", []);
@@ -218,15 +231,18 @@
 			GM_setValue("DETAILS", details);
 		}
 	}
+
 	// apis
 	class Apis {
 		// movie
 		static async movieImg(code) {
 			code = code.toUpperCase();
+
 			const [blogJav, javStore] = await Promise.all([
 				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
 				request(`https://javstore.net/search/${code}.html`),
 			]);
+
 			const [bjRes, jsRes] = await Promise.all([
 				request(
 					`http://webcache.googleusercontent.com/search?q=cache:${
@@ -235,6 +251,7 @@
 				),
 				request(javStore?.querySelector("#content_news li a")?.href),
 			]);
+
 			let bjImg = "";
 			if (bjRes) {
 				bjImg = bjRes
@@ -243,10 +260,12 @@
 					.replace("//t", "//img")
 					.replace("thumbs", "images");
 			}
+
 			return bjImg || jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") || "";
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
+
 			if (studio) {
 				const matchList = [
 					{
@@ -270,11 +289,14 @@
 				const matched = matchList.find(({ name }) => name === studio);
 				if (matched) return matched.match.replace(/%s/g, matched.trans ? matched.trans(code) : code);
 			}
+
 			let [r18, xrmoo] = await Promise.all([
 				request(`https://www.r18.com/common/search/order=match/searchword=${code}/`),
 				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
 			]);
+
 			r18 = r18?.querySelector("a.js-view-sample");
+
 			return (
 				r18?.getAttribute("data-video-high") ||
 				r18?.getAttribute("data-video-med") ||
@@ -289,13 +311,16 @@
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
 			const codeReg = new RegExp(code, "gi");
+
 			const matchList = [
 				{
 					site: "Netflav",
 					host: "https://netflav.com/",
 					search: "search?type=title&keyword=%s",
 					selectors: ".grid_root .grid_cell",
-					filter: { name: e => e?.querySelector(".grid_title").textContent },
+					filter: {
+						name: e => e?.querySelector(".grid_title").textContent,
+					},
 				},
 				{
 					site: "BestJavPorn",
@@ -312,43 +337,57 @@
 					host: "https://javhhh.com/",
 					search: "v/?wd=%s",
 					selectors: "#wrapper .typelist .i-container",
-					filter: { name: e => e?.querySelector("img.img-responsive").title },
+					filter: {
+						name: e => e?.querySelector("img.img-responsive").title,
+					},
 				},
 				{
 					site: "Avgle",
 					host: "https://avgle.com/",
 					search: "search/videos?search_query=%s&search_type=videos",
 					selectors: ".row .well.well-sm",
-					filter: { name: e => e?.querySelector(".video-title")?.textContent },
+					filter: {
+						name: e => e?.querySelector(".video-title")?.textContent,
+					},
 				},
 			];
+
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
+
 			const players = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
+
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
 				if (!node?.length) continue;
+
 				for (const item of node) {
 					const player = { from: site };
 					Object.keys(filter).forEach(key => {
 						player[key] = filter[key](item) ?? "";
 					});
+
 					const { name } = player;
 					let link = item?.querySelector("a")?.getAttribute("href");
 					if (!name || !name.match(codeReg)?.length || !link) continue;
+
 					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
 					if (!("zh" in player)) player.zh = /中文/g.test(name);
+
 					if (player.zh) {
 						players.unshift(player);
 						break;
 					}
 					players.push(player);
 				}
+
+				if (players.find(item => item.zh)) break;
 			}
+
 			return players.length ? players[0].link : "";
 		}
 		static async movieTitle(sentence) {
@@ -356,23 +395,28 @@
 			const data = {
 				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1642125176704,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
 			};
+
 			const res = await request(
 				"https://www.google.com/async/translate?vet=12ahUKEwi03Jv2kLD1AhWRI0QIHe_TDKAQqDh6BAgCECY..i&ei=ZtfgYbSRO5HHkPIP76ezgAo&yv=3",
 				data,
 				"POST",
 				{ responseType: "" }
 			);
+
 			return res?.querySelector("#tw-answ-target-text").textContent ?? "";
 		}
 		static async movieStar(code) {
 			code = code.toUpperCase();
 			const site = "https://javdb.com";
+
 			let res = await request(`${site}/search?q=${code}&sb=0`);
 			const href = res?.querySelector("#videos .grid-item a").getAttribute("href");
 			if (!href) return;
+
 			res = await request(`${site}${href}`);
 			res = res?.querySelectorAll(".panel-block");
 			if (!res?.length) return;
+
 			res = res[res.length - 3]?.querySelector(".value").textContent.trim();
 			return res
 				.split(/\n/)
@@ -381,6 +425,7 @@
 		}
 		static async movieMagnet(code) {
 			code = code.toUpperCase();
+
 			const matchList = [
 				{
 					site: "Sukebei",
@@ -409,35 +454,43 @@
 					},
 				},
 			];
+
 			const matched = await Promise.all(
 				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
 			);
+
 			const magnets = [];
 			for (let index = 0; index < matchList.length; index++) {
 				let node = matched[index];
 				if (!node) continue;
+
 				const { selectors, site, filter, host } = matchList[index];
 				node = node?.querySelectorAll(selectors);
 				if (!node?.length) continue;
+
 				for (const item of node) {
 					const magnet = { from: site };
 					Object.keys(filter).forEach(key => {
 						magnet[key] = filter[key](item)?.trim();
 					});
+
 					magnet.bytes = transToBytes(magnet.size);
 					magnet.zh = /中文/g.test(magnet.name);
 					magnet.link = magnet.link.split("&")[0];
 					const { href } = magnet;
 					if (href && !href.includes("//")) magnet.href = `${host}${href.replace(/^\//, "")}`;
+
 					magnets.push(magnet);
 				}
 			}
+
 			return magnets;
 		}
 		// drive
 		static async searchVideo(params = { search_value: "" } | "") {
 			if (typeof params === "string") params = { search_value: params };
 			if (!params.search_value.trim()) return [];
+
 			const res = await request(
 				"https://webapi.115.com/files/search",
 				{
@@ -459,6 +512,7 @@
 				"GET",
 				{ responseType: "json" }
 			);
+
 			return (res.data ?? []).map(({ cid, fid, n, pc, t }) => {
 				return { cid, fid, n, pc, t };
 			});
@@ -486,6 +540,7 @@
 				"GET",
 				{ responseType: "json" }
 			);
+
 			return res?.data ?? [];
 		}
 		static async getSign() {
@@ -495,7 +550,9 @@
 				"GET",
 				{ responseType: "json" }
 			);
+
 			if (state) return { sign, time };
+
 			notify({
 				title: "请求失败，115未登录",
 				text: "点击跳转登录",
@@ -520,9 +577,12 @@
 		static driveRename(res) {
 			const data = {};
 			for (const { fid, file_name } of res) data[`files_new_name[${fid}]`] = file_name;
+
 			return request("https://webapi.115.com/files/batch_rename", data, "POST");
 		}
 	}
+
+	// common
 	class Common {
 		docStart = () => {};
 		contentLoaded = () => {};
@@ -553,7 +613,6 @@
 				"D_CID",
 				"D_VERIFY",
 				"D_RENAME",
-				"D_UPIMG",
 			],
 			details: [
 				{
@@ -681,13 +740,6 @@
 					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，文件重命名，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母转大写；番号必须，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，页面标题可能已包含番号，自行判断',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
-				},
-				{
-					name: "上传封面",
-					key: "D_UPIMG",
-					type: "switch",
-					info: "需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，自动上传封面图",
-					defaultVal: true,
 				},
 			],
 		};
@@ -1400,7 +1452,7 @@
 
 			return Apis.driveRename(res);
 		};
-
+		// offline
 		driveOffline = async (e, { magnets, code, title }) => {
 			const { target } = e;
 			const { magnet: type } = target.dataset;
@@ -1477,18 +1529,22 @@
 			target.textContent = originText;
 		};
 	}
+
+	// javbus
 	class JavBus extends Common {
 		constructor() {
 			super();
 			return super.init();
 		}
+
+		excludeMenu = [];
 		routes = {
 			list: /^\/((uncensored|uncensored\/)?(page\/\d+)?$)|((uncensored\/)?((search|searchstar|actresses|genre|star|studio|label|series|director|member)+\/)|actresses(\/\d+)?)+/i,
 			genre: /^\/(uncensored\/)?genre$/i,
 			forum: /^\/forum\//i,
 			movie: /^\/[\w]+(-|_)?[\d]*.*$/i,
 		};
-		excludeMenu = [];
+
 		// styles
 		_style = `
         .ad-box {
@@ -1597,6 +1653,7 @@
             color: var(--x-sub-ftc) !important;
         }
         `;
+
 		// methods
 		_globalSearch = () => {
 			this.globalSearch("#search-input", "/search/%s");
@@ -1615,6 +1672,7 @@
 				info.replaceChild(_title, title);
 			}
 		};
+
 		// modules
 		list = {
 			docStart() {
@@ -1689,8 +1747,10 @@
 			contentLoaded() {
 				const nav = DOC.querySelector(".search-header .nav");
 				if (nav) nav.classList.replace("nav-tabs", "nav-pills");
+
 				this._globalSearch();
 				this._globalClick();
+
 				this.modifyLayout();
 			},
 			modifyLayout() {
@@ -1726,6 +1786,7 @@
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
 					if (!body) return;
+
 					let items = this.modifyItem(body);
 					if (isStarDetail) [_, ...items] = items;
 					infScroll.appendItems(items);
@@ -1747,6 +1808,7 @@
 			_listMovieImgType(node) {
 				const item = node.querySelector(".movie-box");
 				if (!item) return;
+
 				const condition = [
 					{
 						regex: /\/thumb(s)?\//gi,
@@ -1757,6 +1819,7 @@
 						replace: val => val.replace("ps.jpg", "pl.jpg"),
 					},
 				];
+
 				this.listMovieImgType(item, condition);
 			},
 			modifyAvatarBox(node = DOC) {
@@ -1838,6 +1901,7 @@
 			contentLoaded() {
 				this._globalSearch();
 				if (!DOC.querySelector("button.btn.btn-danger.btn-block.btn-genre")) return;
+
 				const box = DOC.querySelectorAll(".genre-box");
 				box[box.length - 1].classList.add("x-last-box");
 				DOC.querySelector(".container-fluid.pt10").addEventListener("click", ({ target }) => {
@@ -1893,87 +1957,6 @@
                 }
                 `;
 
-				// const dmStyle = `
-				// /** head **/
-				// #toptb,
-				// #qmenu_menu,
-				// .biaoqi_bk_sj {
-				//     background: var(--x-sub-bgc) !important;
-				// }
-				// #toptb .nav-active a,
-				// .menu-body-panel,
-				// .menu-body-panel .icon-arrow-t {
-				//     background-color: var(--x-bgc) !important;
-				// }
-				// .jump_bdl li {
-				//     background-color: unset !important;
-				// }
-				// .p_pop a:hover {
-				//     background-color: var(--x-grey) !important;
-				// }
-				// /** left **/
-				// #ct .mn > div:first-child,
-				// .biaoqicn_show a:not(.on),
-				// .dspanonhover,
-				// .fl .bm,
-				// .fl .bm_h,
-				// .frame,
-				// .frame-tab,
-				// #online,
-				// #threadlist,
-				// tr[style="background: #fff;"],
-				// .p_pop,
-				// .p_pof,
-				// .sllt {
-				//     background: var(--x-sub-bgc) !important;
-				// }
-				// .new4_list_top,
-				// #thread_types,
-				// #separatorline tr {
-				//     background: var(--x-grey) !important;
-				// }
-				// .dspanonhover {
-				//     height: 41px !important;
-				//     line-height: 40px !important;
-				//     border-top: none !important;
-				// }
-				// #filter_special, #filter_time, #filter_orderby, #filter_types, #filter_ctime, .post_two {
-				//     background-color: var(--x-sub-bgc) !important;
-				// }
-				// #threadlist tr:hover {
-				//     background: var(--x-grey);
-				// }
-				// .tps a:hover {
-				//     background-color: var(--x-sub-bgc) !important;
-				// }
-				// .pg a, .pgb a, .pg label {
-				//     background: var(--x-sub-bgc);
-				// }
-				// /** right **/
-				// .main-right-p15 {
-				//     background: var(--x-sub-bgc) !important;
-				// }
-				// .main-right-tit span {
-				//     color: var(--x-ftc)
-				// }
-				// .main-right-zuixin .comment-excerpt {
-				//     background: var(--x-grey) !important;
-				// }
-				// .main-right-zuixin .comment-excerpt:before {
-				//     border-bottom-color: var(--x-grey) !important;
-				// }
-				// .biaoqi_forum_ps {
-				//     background-color: var(--x-sub-bgc);
-				// }
-				// /** global **/
-				// #moquu_top {
-				//     background-color: var(--x-sub-bgc) !important;
-				// }
-				// #moquu_top:hover {
-				//     background-color: var(--x-grey) !important;
-				// }
-				// `;
-
 				this.globalDark(`${this.style}${style}`);
 			},
 			contentLoaded() {
@@ -1983,6 +1966,7 @@
 		movie = {
 			params: {},
 			magnets: null,
+
 			docStart() {
 				const style = `
                 #mag-submit-show,
@@ -2486,14 +2470,14 @@
 				);
 			},
 			async _driveOffline(e) {
-				// await this.driveOffline(e, { ...this.params, magnets: this.magnets });
-				// await delay(0.6);
-				// this._driveMatch();
-
-				this.driveUpImg();
+				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
+				await delay(0.6);
+				this._driveMatch();
 			},
 		};
 	}
+
+	// 115
 	class Drive115 {
 		contentLoaded() {
 			window.focus();
