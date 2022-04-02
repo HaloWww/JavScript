@@ -116,10 +116,8 @@
 					console.warn(`请求超时，检查网络`);
 				},
 				onload: ({ status, response }) => {
-					const errcode = response?.errcode ?? "";
-
-					if (errcode === 911) verify();
-					if (status === 404 || errcode === 911) response = false;
+					if (response?.errcode === 911) verify();
+					if (status === 404) response = false;
 
 					if (response && ["", "text"].includes(params.responseType ?? "")) {
 						const htmlRegex = /<\/?[a-z][\s\S]*>/i;
@@ -1472,6 +1470,10 @@
 
 					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
 					if (!res?.state) {
+						if (res.errcode === 911) {
+							notify({ title: "一键离线任务中断", text: res.error_msg, image: "warn", highlight: false });
+							break;
+						}
 						if (!isLast) continue;
 						notify(warnMsg);
 						break;
