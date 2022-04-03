@@ -36,11 +36,12 @@
 
 /**
  * TODO:
+ * 脚本 icon, css, bootstrap(精简) 视觉调整?
  * 列表 数据聚合?
  * 其他 发送至 aria2/qBittorrent 下载?
- * 脚本 icon, css, bootstrap(精简) 视觉调整?
  *
- * 详情 磁链字幕额外过滤
+ * 脚本 控制面板重置按钮
+ * 详情 磁链字幕额外过滤 done
  * 列表 标题等高模式 done
  * 115 匹配 & 离线，番号开头0省略兼容 done
  */
@@ -717,7 +718,7 @@
 					name: "字幕筛选",
 					key: "M_SUB",
 					type: "switch",
-					info: "额外针对名称为 “<code>大写字母</code> + <code>-C</code>” 资源判断",
+					info: "额外针对名称为 <code>大写字母</code> + <code>-C</code> 资源判断",
 					defaultVal: false,
 				},
 				{
@@ -815,7 +816,7 @@
 			if (!commands.length) return;
 
 			const domain = Matched.domain;
-			const active = tabs.find(tab => tab.key === this.route) ?? tabs[0];
+			const active = tabs.find(({ key }) => key === this.route) ?? tabs[0];
 
 			let tabStr = "";
 			let panelStr = "";
@@ -850,18 +851,21 @@
 
 				for (let curIdx = 0; curIdx < curLen; curIdx++) {
 					const {
-						name,
 						key: curKey,
-						type,
 						defaultVal,
+						name,
+						type,
 						hotkey = "",
 						placeholder = "",
 						info,
 					} = details.find(item => item.key === curCommands[curIdx]);
+
 					const uniKey = `${domain}_${curKey}`;
 					const val = GM_getValue(uniKey, defaultVal);
 					this[curKey] = val;
+
 					panelStr += `<div${curIdx + 1 === curLen ? "" : ` class="mb-3"`}>`;
+
 					if (type === "switch") {
 						if (curKey.startsWith("G")) {
 							GM_registerMenuCommand(
@@ -900,6 +904,7 @@
 				            >
 					        `;
 					}
+
 					if (info) panelStr += `<div id="${curKey}_Help" class="form-text">${info}</div>`;
 					panelStr += `</div>`;
 				}
@@ -919,7 +924,7 @@
                         title="控制面板"
                     ></iframe>`
 				);
-				const iframe = DOC.querySelector("#control-panel");
+				const iframe = DOC.querySelector("iframe#control-panel");
 				const _DOC = iframe.contentWindow.document;
 
 				_DOC.querySelector("head").insertAdjacentHTML(
@@ -998,6 +1003,14 @@
                                 <div class="modal-footer">
                                     <button
                                         type="button"
+                                        class="btn btn-danger"
+                                        data-bs-dismiss="modal"
+                                        data-action="restart"
+                                    >
+                                        重置脚本
+                                    </button>
+                                    <button
+                                        type="button"
                                         class="btn btn-secondary"
                                         data-bs-dismiss="modal"
                                         data-action="reset"
@@ -1021,7 +1034,9 @@
 				body.querySelector(".modal-footer").addEventListener("click", e => {
 					const { action } = e.target.dataset;
 					if (!action) return;
+
 					e.preventDefault();
+					e.stopPropagation();
 
 					if (action === "save") {
 						const data = Object.fromEntries(new FormData(body.querySelector("form")).entries());
@@ -1029,6 +1044,9 @@
 					}
 					if (action === "reset") {
 						GM_listValues().forEach(name => name.startsWith(domain) && GM_deleteValue(name));
+					}
+					if (action === "restart") {
+						GM_listValues().forEach(name => GM_deleteValue(name));
 					}
 
 					location.reload();
