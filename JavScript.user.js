@@ -36,11 +36,12 @@
 
 /**
  * TODO:
- * 脚本 icon, css, bootstrap(精简) 视觉调整?
  * 列表 标题等高模式
  * 详情 磁链字幕额外过滤
  * 列表 数据聚合?
- * 其他 发送至 aria2 下载?
+ * 其他 发送至 aria2/qBittorrent 下载?
+ * 脚本 icon, css, bootstrap(精简) 视觉调整?
+ *
  * 115 匹配 & 离线，番号开头0省略兼容 done
  */
 
@@ -607,6 +608,7 @@
 				"G_SEARCH",
 				"G_CLICK",
 				"L_MIT",
+				"L_MTH",
 				"L_MTL",
 				"L_SCROLL",
 				"M_IMG",
@@ -654,10 +656,17 @@
 					defaultVal: true,
 				},
 				{
+					name: "标题等高",
+					key: "L_MTH",
+					type: "switch",
+					info: "影片标题强制等高",
+					defaultVal: false,
+				},
+				{
 					name: "标题最大行",
 					key: "L_MTL",
 					type: "number",
-					info: "影片标题最大显示行数，超出省略。0 不限制 (默认 1)",
+					info: "影片标题最大显示行数，超出省略。0 不限制 (等高模式下最小有效值 1)",
 					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 1,
 				},
@@ -1044,6 +1053,8 @@
             --x-green: #30d158;
             --x-red: #ff453a;
 
+            --x-line-h: 22px;
+
             --x-thumb-w: 190px;
             --x-cover-w: 295px;
 
@@ -1132,6 +1143,9 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .x-title {
+            line-height: var(--x-line-h) !important;
+        }
         .x-matched {
             font-weight: bold;
             color: var(--x-blue);
@@ -1153,7 +1167,7 @@
             background-color: rgba(0, 0, 0, .2);
             background-position: center;
             background-repeat: no-repeat;
-            opacity: .9;
+            opacity: .85;
             background-image: url(${GM_getResourceURL("play")});
             background-size: 40px;
         }
@@ -1248,10 +1262,17 @@
 			const { src = "" } = img;
 			img.src = condition.find(({ regex }) => regex.test(src))?.replace(src);
 		};
-		// L_MTL
-		listMovieTitleLine = () => {
-			const num = parseInt(this.L_MTL ?? 0, 10);
-			GM_addStyle(`.x-title { -webkit-line-clamp: ${num <= 0 ? "unset" : num}; }`);
+		// L_MTL, L_MTH
+		listMovieTitle = () => {
+			let num = parseInt(this.L_MTL ?? 0, 10);
+			if (this.L_MTH && num < 1) num = 1;
+
+			GM_addStyle(`
+			.x-title {
+			    -webkit-line-clamp: ${num <= 0 ? "unset" : num};
+			    ${this.L_MTH ? `height: calc(var(--x-line-h) * ${num}) !important;` : ""}
+			}
+			`);
 		};
 		// L_SCROLL
 		listScroll = (container, itemSelector, path) => {
@@ -1664,7 +1685,7 @@
         .sample-box > *:nth-child(2) {
             padding: 0 10px 10px !important;
             border: none !important;
-            line-height: 22px !important;
+            line-height: var(--x-line-h) !important;
             height: auto !important;
         }
         `;
@@ -1736,7 +1757,7 @@
 				    margin-bottom: 40px;
 				}
                 .movie-box .x-title + div {
-                    height: 22px;
+                    height: var(--x-line-h) !important;
                     margin: 4px 0;
                 }
                 .avatar-box .pb10 {
@@ -1772,7 +1793,7 @@
 					`${this.style}${this._style}${this.boxStyle}${this.customStyle}${style}`,
 					`${this.dmStyle}${this._dmStyle}${this.dmBoxStyle}${dmStyle}`
 				);
-				this.listMovieTitleLine();
+				this.listMovieTitle();
 			},
 			contentLoaded() {
 				const nav = DOC.querySelector(".search-header .nav");
@@ -2039,7 +2060,7 @@
                     opacity: 0;
                 }
                 .info p {
-                    line-height: 22px !important;
+                    line-height: var(--x-line-h) !important;
                 }
                 .star-box img {
 				    width: 100% !important;
