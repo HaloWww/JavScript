@@ -41,6 +41,7 @@
  * 详情 磁链字幕额外过滤
  * 列表 数据聚合?
  * 其他 发送至 aria2 下载?
+ * 115 匹配 & 离线，番号开头0省略兼容 done
  */
 
 (function () {
@@ -204,6 +205,17 @@
 		);
 	};
 	const delay = n => new Promise(r => setTimeout(r, n * 1000));
+	const codeParse = code => {
+		const codes = code
+			.split(/-|_/)
+			.filter(Boolean)
+			.map(item => (item.startsWith("0") ? item.slice(1) : item));
+
+		return {
+			prefix: codes[0],
+			regex: new RegExp(codes.join(".*"), "i"),
+		};
+	};
 
 	// store
 	class Store {
@@ -305,7 +317,7 @@
 		}
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
-			const codeReg = new RegExp(code, "gi");
+			const { regex } = codeParse(code);
 
 			const matchList = [
 				{
@@ -368,7 +380,7 @@
 
 					const { name } = player;
 					let link = item?.querySelector("a")?.getAttribute("href");
-					if (!name || !name.match(codeReg)?.length || !link) continue;
+					if (!name || !regex.test(name) || !link) continue;
 
 					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
 					if (!("zh" in player)) player.zh = /中文/g.test(name);
@@ -1388,8 +1400,7 @@
 
 			start && start();
 			code = code.toUpperCase();
-			const codes = code.split(/-|_/).filter(Boolean);
-			const prefix = codes[0];
+			const { prefix, regex } = codeParse(code);
 
 			if (res === "list") {
 				res = Store.getDetail(code)?.res;
@@ -1406,7 +1417,6 @@
 			} else {
 				let _res = res ?? (await Apis.searchVideo(prefix));
 				if (_res?.length) {
-					const regex = new RegExp(`${codes.join(".*")}`, "i");
 					_res = _res.filter(({ n }) => regex.test(n));
 				}
 				if (!res) Store.upDetail(code, { res: _res });
@@ -1459,9 +1469,7 @@
 				.replace(/\$\{番号\}/g, code)
 				.replace(/\$\{标题\}/g, title);
 
-			const codes = code.split(/-|_/).filter(Boolean);
-			const regex = new RegExp(`${codes.join(".*")}`, "i");
-			if (!regex.test(file_name)) file_name = `${code} - ${file_name}`;
+			if (!codeParse(code).regex.test(file_name)) file_name = `${code} - ${file_name}`;
 
 			res = res
 				.filter(item => item.ico)
