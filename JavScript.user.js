@@ -29,7 +29,6 @@
 // @grant           GM_getValue
 // @grant           GM_info
 // @license         GPL-3.0-only
-// @compatible      firefox 未测试
 // @compatible      chrome
 // @compatible      edge
 // ==/UserScript==
