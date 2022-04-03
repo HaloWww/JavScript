@@ -36,12 +36,12 @@
 
 /**
  * TODO:
- * 列表 标题等高模式
- * 详情 磁链字幕额外过滤
  * 列表 数据聚合?
  * 其他 发送至 aria2/qBittorrent 下载?
  * 脚本 icon, css, bootstrap(精简) 视觉调整?
  *
+ * 详情 磁链字幕额外过滤
+ * 列表 标题等高模式 done
  * 115 匹配 & 离线，番号开头0省略兼容 done
  */
 
@@ -616,6 +616,7 @@
 				"M_PLAYER",
 				"M_TITLE",
 				"M_STAR",
+				"M_SUB",
 				"M_SORT",
 				"M_MAGNET",
 				"D_MATCH",
@@ -711,6 +712,13 @@
 					type: "switch",
 					info: `如无，获取自 <a href="https://javdb.com/" class="link-primary">JavDB</a>`,
 					defaultVal: true,
+				},
+				{
+					name: "字幕筛选",
+					key: "M_SUB",
+					type: "switch",
+					info: "额外针对名称为 “<code>大写字母</code> + <code>-C</code>” 资源判断",
+					defaultVal: false,
 				},
 				{
 					name: "磁力排序",
@@ -1385,6 +1393,17 @@
 				if (star?.length) Store.upDetail(code, { star });
 			}
 			return star;
+		};
+		// M_SUB
+		movieSub = (magnets, start) => {
+			if (!this.M_SUB) return magnets;
+
+			start && start();
+			const regex = /[A-Z]+-\d+-C/;
+			return magnets.map(item => {
+				item.zh = item.zh && !regex.test(item.name);
+				return item;
+			});
 		};
 		// M_SORT
 		movieSort = (magnets, start) => {
@@ -2419,6 +2438,7 @@
 					const _link = link?.querySelector("a");
 					const _size = size?.textContent.trim();
 					if (!_link || !_size || !date) continue;
+
 					magnets.push({
 						name: _link.textContent.trim(),
 						link: _link.href.split("&")[0],
@@ -2445,42 +2465,52 @@
 			},
 			refactorTd(magnets) {
 				const table = DOC.querySelector(".x-table");
+				const caption = table.querySelector(".x-caption");
 
-				let sortStart = () => {
-					table
-						.querySelector(".x-caption")
-						.insertAdjacentHTML(
-							"beforeend",
-							`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
-						);
+				let subStart = () => {
+					caption.insertAdjacentHTML(
+						"beforeend",
+						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 字幕筛选</span>`
+					);
 				};
+				let sortStart = () => {
+					caption.insertAdjacentHTML(
+						"beforeend",
+						`<span class="label label-success"><span class="glyphicon glyphicon-ok-sign" aria-hidden="true"></span> 磁力排序</span>`
+					);
+				};
+
 				if (this.magnets) {
+					subStart = null;
 					sortStart = null;
 					magnets = unique([...this.magnets, ...magnets], "link");
 				}
-				magnets = this.movieSort(magnets, sortStart);
-				this.magnets = magnets;
 
 				table.querySelector("tfoot td").textContent = magnets.length;
+
+				magnets = this.movieSub(magnets, subStart);
+				magnets = this.movieSort(magnets, sortStart);
+				this.magnets = magnets;
 
 				magnets = this.createTd(magnets);
 				if (!magnets) return;
 				table.querySelector("tbody").innerHTML = magnets;
 
-				if (!sortStart) return;
-				const copyAll = table.querySelector("thead th:last-child");
-				copyAll.innerHTML = `<a href="javascript:void(0);" title="复制所有磁力链接">全部复制</a>`;
-				copyAll.querySelector("a").addEventListener("click", e => {
+				if (!subStart || !sortStart) return;
+				const node = table.querySelector("thead th:last-child");
+				node.innerHTML = `<a href="javascript:void(0);" title="复制所有磁力链接">全部复制</a>`;
+				node.querySelector("a").addEventListener("click", e => {
 					e.preventDefault();
 					e.stopPropagation();
 
-					GM_setClipboard(this.magnets.map(magnet => magnet.link).join("\n"));
+					GM_setClipboard(this.magnets.map(({ link }) => link).join("\n"));
 					const { target } = e;
 					target.textContent = "复制成功";
+
 					const timer = setTimeout(() => {
 						target.textContent = "全部复制";
 						clearTimeout(timer);
-					}, 400);
+					}, 300);
 				});
 			},
 			createTd(magnets) {
