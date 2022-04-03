@@ -3,7 +3,7 @@
 // @namespace       JavScript@blc
 // @version         3.0.0
 // @author          blc
-// @description     一站式体验，JavBus & JavDB 兼容
+// @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
 // @include         *
 // @require         https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js
@@ -36,7 +36,7 @@
 /**
  * TODO:
  * ⏳ 脚本 - JavDB 兼容
- * ⏳ 脚本 - icon, style, bootstrap 精简 & 视觉调整统一
+ * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
  * ⏳ 列表 - 自定义数据聚合页
  * ⏳ 详情 - 发送磁链至 aria2 下载
  */
