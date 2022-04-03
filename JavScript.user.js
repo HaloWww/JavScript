@@ -40,7 +40,7 @@
  * 列表 数据聚合?
  * 其他 发送至 aria2/qBittorrent 下载?
  *
- * 脚本 控制面板重置按钮
+ * 脚本 控制面板重置按钮 done
  * 详情 磁链字幕额外过滤 done
  * 列表 标题等高模式 done
  * 115 匹配 & 离线，番号开头0省略兼容 done
@@ -593,10 +593,6 @@
 
 	// common
 	class Common {
-		docStart = () => {};
-		contentLoaded = () => {};
-		load = () => {};
-
 		menus = {
 			tabs: [
 				{ title: "全站", key: "global", prefix: "G" },
@@ -1323,7 +1319,6 @@
 			const infScroll = new InfiniteScroll(container, {
 				path: () => nextURL,
 				checkLastPage: path,
-				prefill: true,
 				outlayer: msnry,
 				history: false,
 			});
@@ -1540,7 +1535,7 @@
 
 			return Apis.driveRename(res);
 		};
-		// offline
+
 		driveOffline = async (e, { magnets, code, title }) => {
 			const { target } = e;
 			const { magnet: type } = target.dataset;
