@@ -210,7 +210,7 @@
 
 		return {
 			prefix: codes[0],
-			regex: new RegExp(codes.join(".*"), "i"),
+			regex: new RegExp(codes.join(".{0,4}"), "i"),
 		};
 	};
 
