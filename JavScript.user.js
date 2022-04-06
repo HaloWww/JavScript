@@ -1746,6 +1746,7 @@
 				const info = item.querySelector(".photo-info span");
 				info.innerHTML = info.innerHTML.replace(/<\/?span.*>|<br>/g, "");
 				const title = info.firstChild;
+				if (!title) continue;
 				const titleText = title.textContent.trim();
 				const _title = DOC.create("div", { title: titleText, class: "x-ellipsis x-title" }, titleText);
 				info.replaceChild(_title, title);
@@ -2112,8 +2113,9 @@
 				    word-spacing: 0 !important;
 				    vertical-align: top !important;
 				}
-                .movie-box > * {
+                .movie-box > *:nth-child(2) {
                     text-align: left !important;
+                    min-height: 32px !important;
                 }
                 .x-ml {
                     margin-left: 10px;
