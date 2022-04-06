@@ -35,7 +35,6 @@
 
 /**
  * TODO:
- * ⏳ 详情 - switch 点击切换 active, active 点击放大图片 | 播放/暂停视频
  * ⏳ 详情 - 发送磁链至 aria2 下载?
  * ⏳ 列表 - 自定义数据聚合页
  * ⏳ 脚本 - JavDB 兼容
@@ -2273,7 +2272,7 @@
 				info.insertAdjacentHTML(
 					"afterbegin",
 					`<div class="btn-group btn-group-justified mb10" hidden id="x-switch" role="group">
-                        <div class="btn-group btn-group-sm" role="group">
+                        <div class="btn-group btn-group-sm" role="group" title="点击放大">
                             <button type="button" class="btn btn-default active" for="x-switch-cover">封面</button>
                         </div>
                     </div>`
@@ -2293,8 +2292,11 @@
 						return;
 					}
 
-					switcher.querySelector("button.active").classList.toggle("active");
+					const preActive = switcher.querySelector("button.active");
+					preActive.classList.toggle("active");
+					preActive.setAttribute("title", "点击切换");
 					classList.toggle("active");
+					target.removeAttribute("title");
 
 					bigImage.querySelector(".x-contain.x-in").classList.toggle("x-in");
 					const targetNode = bigImage.querySelector(`#${id}`);
@@ -2333,20 +2335,26 @@
 				const nodeParent = node.parentNode;
 				if (!src) return nodeParent.setAttribute("title", "暂无资源");
 
-				nodeParent.removeAttribute("title");
 				node.removeAttribute("disabled");
 
 				if (type === "link") {
+					nodeParent.removeAttribute("title");
 					node.setAttribute("title", "跳转链接");
+
 					node.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
 						GM_openInTab(src, { setParent: true, active: true });
 					});
 				} else {
+					node.setAttribute("title", "点击切换");
+					nodeParent.setAttribute("title", "点击放大");
+
 					const item = DOC.create(type, { src, id, class: "x-contain" });
 
 					if (type === "video") {
+						nodeParent.setAttribute("title", "切换静音");
+
 						item.controls = true;
 						item.currentTime = 3;
 						item.muted = true;
