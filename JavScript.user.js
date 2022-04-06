@@ -35,9 +35,9 @@
 
 /**
  * TODO:
+ * ⏳ 脚本 - JavDB 兼容
  * ⏳ 详情 - 发送磁链至 aria2 下载?
  * ⏳ 列表 - 自定义数据聚合页
- * ⏳ 脚本 - JavDB 兼容
  * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
  */
 
@@ -2595,6 +2595,9 @@
 			},
 		};
 	}
+
+	// javdb
+	class JavDB extends Common {}
 
 	// 115
 	class Drive115 {
