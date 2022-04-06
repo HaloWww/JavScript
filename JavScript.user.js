@@ -2284,7 +2284,14 @@
 					const id = target.getAttribute("for");
 					const { classList } = target;
 
-					if (!id || classList.contains("active")) return;
+					if (!id) return;
+					if (classList.contains("active")) {
+						const active = bigImage.querySelector(".x-contain.x-in");
+						const { nodeName } = active;
+						if (nodeName === "IMG") bigImage.click();
+						if (nodeName === "VIDEO") active.muted = !active.muted;
+						return;
+					}
 
 					switcher.querySelector("button.active").classList.toggle("active");
 					classList.toggle("active");
