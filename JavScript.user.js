@@ -35,10 +35,11 @@
 
 /**
  * TODO:
+ * ⏳ 详情 - switch 点击切换 active, active 点击放大图片 | 播放/暂停视频
+ * ⏳ 详情 - 发送磁链至 aria2 下载?
+ * ⏳ 列表 - 自定义数据聚合页
  * ⏳ 脚本 - JavDB 兼容
  * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
- * ⏳ 列表 - 自定义数据聚合页
- * ⏳ 详情 - 发送磁链至 aria2 下载
  */
 
 (function () {
