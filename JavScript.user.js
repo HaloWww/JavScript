@@ -2597,7 +2597,147 @@
 	}
 
 	// javdb
-	class JavDB extends Common {}
+	class JavDB extends Common {
+		constructor() {
+			super();
+			return super.init();
+		}
+
+		excludeMenu = ["G_DARK"];
+		routes = {
+			list: /^\/$|^\/(censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
+			movie: /^\/v\//i,
+		};
+
+		// styles
+		_style = `
+        .app-desktop-banner,
+        #footer {
+            display: none !important;
+        }
+        `;
+
+		// methods
+		_globalSearch = () => {
+			this.globalSearch("#video-search", "/search?q=%s");
+		};
+		changeScrollBarColor = () => {
+			if (DOC.documentElement.dataset.theme !== "dark") return;
+			GM_addStyle(`
+            ::-webkit-scrollbar {
+                background: #0a0a0a !important;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: var(--x-grey) !important;
+            }
+            `);
+		};
+
+		// modules
+		list = {
+			docStart() {
+				const style = `
+                #waterfall,
+                .video-container:not(.awards),
+                .section-container:not(.awards) {
+                    /**display: none;
+                    opacity: 0;**/
+                }
+                nav.pagination {
+                    display: none;
+                    padding-bottom: 8px;
+                }
+                `;
+				this.globalDark(`${this.style}${this._style}${this.customStyle}${style}`);
+				this.listMovieTitle();
+			},
+			contentLoaded() {
+				this._globalSearch();
+				// this.globalClick([".video-container a", ".section-container a"]);
+				this.globalClick(["#waterfall a"]);
+
+				this.modifyLayout();
+			},
+			load() {
+				this.changeScrollBarColor();
+			},
+			modifyLayout() {
+				const waterfall =
+					DOC.querySelector(".video-container:not(.awards)") ||
+					DOC.querySelector(".section-container:not(.awards)");
+				if (!waterfall) return;
+
+				const _waterfall = waterfall.cloneNode(true);
+				const { id } = _waterfall;
+				// _waterfall.setAttribute("class", "x-show");
+				// _waterfall.setAttribute("id", "waterfall");
+
+				let items = [];
+				if (id === "videos") items = this.modifyMovieBox(_waterfall);
+				if (id === "actors") items = this.modifyAvatarBox(_waterfall);
+
+				if (items.length) {
+					// _waterfall.innerHTML = "";
+					// items.forEach(item => _waterfall.appendChild(item));
+					// TODO: 封装至 driveMatch
+					// _waterfall.addEventListener("click", e => {
+					// 	const { target } = e;
+					// 	if (!target.classList.contains("x-player")) return;
+					// 	e.preventDefault();
+					// 	e.stopPropagation();
+					// 	GM_openInTab(`${this.pcUrl}${target.dataset.code}`, { setParent: true, active: true });
+					// });
+				}
+
+				waterfall.parentElement.replaceChild(_waterfall, waterfall);
+
+				// #videos.videos.video-container > .grid.columns > .grid-item.column/.horz-cover > a.box
+				// #actors.actors.section-container > .box.actor-box > a
+				// #series.section-container > .columns > .column.is-3 > .box > a
+				// #makers.section-container > .columns > .column.is-3 > .box > a
+
+				// 	const infScroll = this.listScroll(_waterfall, ".item", "#next");
+				// 	if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
+
+				// 	infScroll?.on("request", async (_, fetchPromise) => {
+				// 		const { body } = await fetchPromise.then();
+				// 		if (!body) return;
+
+				// 		let items = this.modifyItem(body);
+				// 		if (isStarDetail) [_, ...items] = items;
+				// 		infScroll.appendItems(items);
+				// 		infScroll.options.outlayer.appended(items);
+				// 	});
+			},
+			modifyMovieBox(container) {
+				const items = container.querySelectorAll(".grid-item.column");
+				for (const item of items) {
+					// item.setAttribute("class", "item");
+					// item.removeAttribute("style");
+					// this._listMovieImgType(item);
+				}
+				// this._driveMatch(container);
+				return items;
+			},
+			modifyAvatarBox(container) {
+				const items = container.querySelectorAll(".box.actor-box");
+				for (const item of items) {
+					// item.setAttribute("class", "item");
+				}
+				return items;
+			},
+		};
+		movie = {
+			docStart() {},
+			contentLoaded() {
+				this._globalSearch();
+				this.globalClick([".message.video-panel .message-body .tile-images.tile-small a"]);
+			},
+			load() {
+				this.changeScrollBarColor();
+			},
+		};
+	}
 
 	// 115
 	class Drive115 {
