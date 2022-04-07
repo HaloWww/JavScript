@@ -2653,10 +2653,10 @@
 			},
 			contentLoaded() {
 				this._globalSearch();
-				// this.globalClick([".video-container a", ".section-container a"]);
-				this.globalClick(["#waterfall a"]);
+				this.globalClick([".video-container a", ".section-container a"]);
+				// this.globalClick(["#waterfall a"]);
 
-				this.modifyLayout();
+				// this.modifyLayout();
 			},
 			load() {
 				this.changeScrollBarColor();
@@ -2689,7 +2689,7 @@
 					// });
 				}
 
-				waterfall.parentElement.replaceChild(_waterfall, waterfall);
+				// waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
 				// #videos.videos.video-container > .grid.columns > .grid-item.column/.horz-cover > a.box
 				// #actors.actors.section-container > .box.actor-box > a
