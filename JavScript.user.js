@@ -1095,6 +1095,7 @@
             text-shadow: none !important;
             text-decoration: none !important;
         }
+        html,
         body {
             overflow-y: overlay;
         }
@@ -1146,7 +1147,7 @@
             width: var(--x-cover-w) !important;
         }
         .x-cover > *:first-child {
-            aspect-ratio: var(--x-cover-ratio);
+            aspect-ratio: var(--x-cover-ratio) !important;
         }
         .x-ellipsis {
             overflow: hidden;
@@ -1154,6 +1155,7 @@
             display: -webkit-box !important;
             -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
+            white-space: unset !important;
         }
         .x-line {
             overflow: hidden;
@@ -1165,7 +1167,7 @@
         }
         .x-matched {
             font-weight: bold;
-            color: var(--x-blue);
+            color: var(--x-blue) !important;
         }
         .x-player {
             position: relative;
@@ -1225,19 +1227,29 @@
 		};
 		// G_CLICK
 		globalClick = (selectors, node = DOC) => {
-			if (!this.G_CLICK) return;
+			node.addEventListener("click", e => {
+				const { target } = e;
+
+				let url = "";
+				if (target.classList.contains("x-player")) {
+					url = `${this.pcUrl}${target.dataset.code}`;
+				} else if (this.G_CLICK) {
+					const target = getTarget(e);
+					if (target) url = target.href;
+				}
+				if (!url) return;
+
+				e.preventDefault();
+				e.stopPropagation();
+				GM_openInTab(url, { setParent: true, active: true });
+			});
 
 			const getTarget = e => {
 				const item = e.target.closest(selectors);
 				return !item?.href || !node.contains(item) ? false : item;
 			};
 
-			node.addEventListener("click", e => {
-				const target = getTarget(e);
-				if (!target) return;
-				e.preventDefault();
-				GM_openInTab(target.href, { setParent: true, active: true });
-			});
+			if (!this.G_CLICK) return;
 
 			let _event;
 
@@ -1846,21 +1858,10 @@
 				const itemsLen = items?.length;
 				if (itemsLen) {
 					_waterfall.innerHTML = "";
-
 					for (let index = 0; index < itemsLen; index++) {
 						if (isStarDetail && !index) continue;
 						_waterfall.appendChild(items[index]);
 					}
-
-					_waterfall.addEventListener("click", e => {
-						const { target } = e;
-						if (!target.classList.contains("x-player")) return;
-
-						e.preventDefault();
-						e.stopPropagation();
-
-						GM_openInTab(`${this.pcUrl}${target.dataset.code}`, { setParent: true, active: true });
-					});
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
@@ -2607,6 +2608,7 @@
 		routes = {
 			list: /^\/$|^\/(censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
+			user: /^\/users\//i,
 		};
 
 		// styles
@@ -2637,12 +2639,74 @@
 		list = {
 			docStart() {
 				const style = `
-                #waterfall,
-                .video-container:not(.awards),
-                .section-container:not(.awards) {
-                    /**display: none;
-                    opacity: 0;**/
+                section.section {
+                    padding-bottom: 0;
                 }
+                .search-bar-container {
+                    overflow: hidden;
+                }
+                .tabs.is-boxed a {
+                    border: none !important;
+                }
+                .index-toolbar {
+                    padding: 0 !important;
+                }
+                .index-toolbar .button-group {
+                    margin-bottom: 0 !important;
+                }
+
+                .video-container:not(.awards) .columns,
+                .section-container:not(.awards) {
+                    margin: 10px auto;
+                    display: none;
+                    opacity: 0;
+                }
+
+                .video-container .columns .column {
+                    padding: 10px;
+                    margin: 0;
+                    min-width: unset;
+                    max-width: none;
+                }
+                .video-container .columns .column .box {
+                    padding: 10px;
+                    width: var(--x-thumb-w);
+                    box-shadow: 0 1px 3px rgb(0 0 0 / 30%) !important;
+                }
+                .video-container .columns .column .box:hover {
+                    box-shadow: 0 1px 3px rgb(0 0 0 / 30%) !important;
+                }
+                :root[data-theme=dark] .video-container .columns .column .box:hover {
+                    border: 1px solid #363636;
+                }
+                .video-container .columns .column .box .item-image {
+                    aspect-ratio: var(--x-thumb-ratio);
+                }
+                .video-container .columns .column .box .item-image:hover img {
+                    transform: none;
+                }
+                .video-container .columns .column .box .item-image img {
+                    min-height: unset !important;
+                    max-width: none !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                }
+                .video-container .columns .column .box .uid,
+                .video-container .columns .column .box .video-title2 {
+                    padding-top: 10px;
+                    font-size: 1em;
+                    line-height: 1.5;
+                }
+                .video-container .columns .column .box .video-title,
+                .video-container .columns .column .box .uid2 {
+                    color: #4a4a4a;
+                    font-size: .8rem;
+                }
+                .video-container .columns .column .box .tags .tag {
+                    padding: .1rem .4rem;
+                }
+
                 nav.pagination {
                     display: none;
                     padding-bottom: 8px;
@@ -2654,69 +2718,71 @@
 			contentLoaded() {
 				this._globalSearch();
 				this.globalClick([".video-container a", ".section-container a"]);
-				// this.globalClick(["#waterfall a"]);
 
-				// this.modifyLayout();
+				this.modifyLayout();
 			},
 			load() {
 				this.changeScrollBarColor();
 			},
 			modifyLayout() {
 				const waterfall =
-					DOC.querySelector(".video-container:not(.awards)") ||
+					DOC.querySelector(".video-container:not(.awards) .columns") ||
 					DOC.querySelector(".section-container:not(.awards)");
 				if (!waterfall) return;
+				const id = waterfall.id || waterfall.parentElement.id;
 
 				const _waterfall = waterfall.cloneNode(true);
-				const { id } = _waterfall;
-				// _waterfall.setAttribute("class", "x-show");
-				// _waterfall.setAttribute("id", "waterfall");
 
 				let items = [];
-				if (id === "videos") items = this.modifyMovieBox(_waterfall);
-				if (id === "actors") items = this.modifyAvatarBox(_waterfall);
+				// #videos.videos.video-container > .grid.columns > .grid-item.column/.horz-cover > a.box
+				if (id === "videos") {
+					_waterfall.setAttribute("class", "columns x-show");
+					items = this.modifyMovieBox(_waterfall);
+				}
+				// #actors.actors.section-container > .box.actor-box > a
+				// if (id === "actors") items = this.modifyAvatarBox(_waterfall);
+				// #series.section-container > .columns > .column.is-3 > .box > a
+				// if (id === "series") items = this.modifyAvatarBox(_waterfall);
+				// #makers.section-container > .columns > .column.is-3 > .box > a
+				// if (id === "makers") items = this.modifyAvatarBox(_waterfall);
 
 				if (items.length) {
-					// _waterfall.innerHTML = "";
-					// items.forEach(item => _waterfall.appendChild(item));
-					// TODO: 封装至 driveMatch
-					// _waterfall.addEventListener("click", e => {
-					// 	const { target } = e;
-					// 	if (!target.classList.contains("x-player")) return;
-					// 	e.preventDefault();
-					// 	e.stopPropagation();
-					// 	GM_openInTab(`${this.pcUrl}${target.dataset.code}`, { setParent: true, active: true });
-					// });
+					_waterfall.innerHTML = "";
+					items.forEach(item => _waterfall.appendChild(item));
 				}
 
-				// waterfall.parentElement.replaceChild(_waterfall, waterfall);
+				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
-				// #videos.videos.video-container > .grid.columns > .grid-item.column/.horz-cover > a.box
-				// #actors.actors.section-container > .box.actor-box > a
-				// #series.section-container > .columns > .column.is-3 > .box > a
-				// #makers.section-container > .columns > .column.is-3 > .box > a
+				const infScroll = this.listScroll(_waterfall, ".column", ".pagination-next");
+				if (!infScroll) return DOC.querySelector("nav.pagination")?.classList.add("x-show");
 
-				// 	const infScroll = this.listScroll(_waterfall, ".item", "#next");
-				// 	if (!infScroll) return DOC.querySelector(".text-center.hidden-xs")?.classList.add("x-show");
-
-				// 	infScroll?.on("request", async (_, fetchPromise) => {
-				// 		const { body } = await fetchPromise.then();
-				// 		if (!body) return;
-
-				// 		let items = this.modifyItem(body);
-				// 		if (isStarDetail) [_, ...items] = items;
-				// 		infScroll.appendItems(items);
-				// 		infScroll.options.outlayer.appended(items);
-				// 	});
+				infScroll?.on("request", async (_, fetchPromise) => {
+					const { body } = await fetchPromise.then();
+					if (!body) return;
+					let items = this.modifyMovieBox(body.querySelector(".video-container"));
+					infScroll.appendItems(items);
+					infScroll.options.outlayer.appended(items);
+				});
 			},
 			modifyMovieBox(container) {
-				const items = container.querySelectorAll(".grid-item.column");
+				const items = container.querySelectorAll(".column");
 				for (const item of items) {
-					// item.setAttribute("class", "item");
-					// item.removeAttribute("style");
-					// this._listMovieImgType(item);
+					item.setAttribute("class", "column");
+
+					const title = item.querySelectorAll([".video-title", ".uid2"])[0];
+					if (title) {
+						title.classList.add("x-ellipsis");
+						title.classList.add("x-title");
+					}
+
+					const img = item.querySelector("img");
+					if (!img) continue;
+					img.removeAttribute("class");
+					const { src } = img.dataset;
+					if (src !== img.src) img.src = src;
+					this._listMovieImgType(item);
 				}
-				// this._driveMatch(container);
+				this._driveMatch(container);
 				return items;
 			},
 			modifyAvatarBox(container) {
@@ -2725,6 +2791,35 @@
 					// item.setAttribute("class", "item");
 				}
 				return items;
+			},
+			_listMovieImgType(node) {
+				const item = node.querySelector(".box");
+				if (!item) return;
+
+				const condition = [
+					{
+						regex: /\/thumbs\//gi,
+						replace: val => val.replace(/\/thumbs\//gi, "/covers/"),
+					},
+				];
+
+				this.listMovieImgType(item, condition);
+			},
+			async _driveMatch(node = DOC) {
+				const items = node.querySelectorAll(".column");
+				for (const item of items) {
+					const code = item.querySelector(".uid")?.textContent?.trim();
+					if (!code) continue;
+
+					const res = await this.driveMatch({ code, res: "list" });
+					if (!res?.length) continue;
+
+					const frame = item.querySelector(".item-image");
+					frame.classList.add("x-player");
+					frame.setAttribute("title", "点击播放");
+					frame.setAttribute("data-code", res[0].pc);
+					item.querySelector(".x-title").classList.add("x-matched");
+				}
 			},
 		};
 		movie = {
@@ -2737,6 +2832,7 @@
 				this.changeScrollBarColor();
 			},
 		};
+		users = {};
 	}
 
 	// 115
