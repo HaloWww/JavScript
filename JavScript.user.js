@@ -2604,7 +2604,7 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK"];
+		excludeMenu = ["G_DARK", "M", "D"];
 		routes = {
 			list: /^\/$|^\/(censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
