@@ -1095,7 +1095,6 @@
             text-shadow: none !important;
             text-decoration: none !important;
         }
-        html,
         body {
             overflow-y: overlay;
         }
