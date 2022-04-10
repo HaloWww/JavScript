@@ -2612,9 +2612,18 @@
 
 		// styles
 		_style = `
+        html {
+            overflow-y: overlay;
+        }
+        body {
+            overflow-x: hidden;
+        }
         .app-desktop-banner,
         #footer {
             display: none !important;
+        }
+        .float-buttons {
+            right: 8px;
         }
         `;
 
@@ -2640,12 +2649,6 @@
 				const style = `
                 section.section {
                     padding-bottom: 0;
-                }
-                .search-bar-container {
-                    overflow: hidden;
-                }
-                .tabs.is-boxed a {
-                    border: none !important;
                 }
                 .index-toolbar {
                     padding: 0 !important;
@@ -2708,7 +2711,8 @@
 
                 nav.pagination {
                     display: none;
-                    padding-bottom: 8px;
+                    margin: 0;
+                    padding: 20px 0;
                 }
                 `;
 				this.globalDark(`${this.style}${this._style}${this.customStyle}${style}`);
@@ -2724,9 +2728,10 @@
 				this.changeScrollBarColor();
 			},
 			modifyLayout() {
-				const waterfall =
-					DOC.querySelector(".video-container:not(.awards) .columns") ||
-					DOC.querySelector(".section-container:not(.awards)");
+				const waterfall = DOC.querySelector(".video-container:not(.awards) .columns");
+				// const waterfall =
+				// 	DOC.querySelector(".video-container:not(.awards) .columns") ||
+				// 	DOC.querySelector(".section-container:not(.awards)");
 				if (!waterfall) return;
 				const id = waterfall.id || waterfall.parentElement.id;
 
@@ -2737,6 +2742,9 @@
 				if (id === "videos") {
 					_waterfall.setAttribute("class", "columns x-show");
 					items = this.modifyMovieBox(_waterfall);
+				}
+				if (id === "actors") {
+					console.log(id);
 				}
 				// #actors.actors.section-container > .box.actor-box > a
 				// if (id === "actors") items = this.modifyAvatarBox(_waterfall);
@@ -2753,7 +2761,10 @@
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
 				const infScroll = this.listScroll(_waterfall, ".column", ".pagination-next");
-				if (!infScroll) return DOC.querySelector("nav.pagination")?.classList.add("x-show");
+				if (!infScroll) {
+					DOC.querySelector("nav.pagination").style.cssText += "display:flex;";
+					return;
+				}
 
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
@@ -2784,13 +2795,13 @@
 				this._driveMatch(container);
 				return items;
 			},
-			modifyAvatarBox(container) {
-				const items = container.querySelectorAll(".box.actor-box");
-				for (const item of items) {
-					// item.setAttribute("class", "item");
-				}
-				return items;
-			},
+			// modifyAvatarBox(container) {
+			// 	const items = container.querySelectorAll(".box.actor-box");
+			// 	for (const item of items) {
+			// 		item.setAttribute("class", "item");
+			// 	}
+			// 	return items;
+			// },
 			_listMovieImgType(node) {
 				const item = node.querySelector(".box");
 				if (!item) return;
