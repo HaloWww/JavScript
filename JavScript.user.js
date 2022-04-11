@@ -2648,12 +2648,48 @@
 			docStart() {
 				const style = `
                 section.section {
-                    padding-bottom: 0;
+                    padding: 20px 20px 0;
                 }
+
+                /** div#search-bar-container.columns.search-bar-container **/
+                .search-bar-container {
+                    padding: 0 !important;
+                    margin: 0 0 20px !important;
+                }
+                .search-bar-container .column {
+                    padding: 0;
+                }
+                .search-bar-wrap {
+                    padding: 10px;
+                }
+                .field:not(:last-child) {
+                    margin-bottom: 10px;
+                }
+
+                /** h3.title.main-title **/
+                .main-title {
+                    padding: 0;
+                    margin-bottom: 20px !important;
+                }
+
+                /** div.tabs.main-tabs.is-boxed **/
+                .tabs:not(:last-child) {
+                    margin-bottom: 0;
+                }
+                .main-tabs {
+                    margin-bottom: 20px !important;
+                }
+
+                /** div.index-toolbar **/
                 .index-toolbar {
                     padding: 0 !important;
                 }
                 .index-toolbar .button-group {
+                    margin-bottom: 0 !important;
+                }
+
+                /** div#tags **/
+                #tags {
                     margin-bottom: 0 !important;
                 }
 
