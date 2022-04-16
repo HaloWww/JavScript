@@ -1079,6 +1079,8 @@
             --x-cover-ratio: 135 / 91;
             --x-avatar-ratio: 1;
             --x-sprite-ratio: 4 / 3;
+
+            --x-shadow: 0 1px 3px rgb(0 0 0 / 30%);
         }
         `;
 		style = `
@@ -2613,10 +2615,7 @@
 		// styles
 		_style = `
         html {
-            overflow-y: overlay;
-        }
-        body {
-            overflow-x: hidden;
+            overflow: overlay;
         }
         .app-desktop-banner,
         #footer {
@@ -2648,60 +2647,33 @@
 			docStart() {
 				const style = `
                 section.section {
-                    padding: 20px 20px 0;
+                    padding-bottom: 0;
                 }
-
-                /** div#search-bar-container.columns.search-bar-container **/
-                .search-bar-container {
-                    padding: 0 !important;
-                    margin: 0 0 20px !important;
+                #search-type,
+                #video-search,
+                #video-search:hover {
+                    border: none;
+                    box-shadow: none;
                 }
-                .search-bar-container .column {
-                    padding: 0;
-                }
-                .search-bar-wrap {
-                    padding: 10px;
-                }
-                .field:not(:last-child) {
-                    margin-bottom: 10px;
-                }
-
-                /** h3.title.main-title **/
-                .main-title {
-                    padding: 0;
-                    margin-bottom: 20px !important;
-                }
-
-                /** div.tabs.main-tabs.is-boxed **/
-                .tabs:not(:last-child) {
-                    margin-bottom: 0;
-                }
-                .main-tabs {
-                    margin-bottom: 20px !important;
-                }
-
-                /** div.index-toolbar **/
-                .index-toolbar {
-                    padding: 0 !important;
-                }
-                .index-toolbar .button-group {
-                    margin-bottom: 0 !important;
-                }
-
-                /** div#tags **/
-                #tags {
-                    margin-bottom: 0 !important;
-                }
-
                 .video-container:not(.awards) .columns,
                 .section-container:not(.awards) {
                     margin: 10px auto;
                     display: none;
                     opacity: 0;
                 }
-
+                nav.pagination {
+                    display: none;
+                    margin: 0 !important;
+                    border: none !important;
+                    padding: 20px 0 40px 0;
+                }
+                :root[data-theme=dark] nav.pagination {
+                    border: none !important;
+                }
+                `;
+				const movieBoxStyle = `
                 .video-container .columns .column {
-                    padding: 10px;
+                    padding: 10px !important;
                     margin: 0;
                     min-width: unset;
                     max-width: none;
@@ -2709,10 +2681,10 @@
                 .video-container .columns .column .box {
                     padding: 10px;
                     width: var(--x-thumb-w);
-                    box-shadow: 0 1px 3px rgb(0 0 0 / 30%) !important;
+                    box-shadow: var(--x-shadow) !important;
                 }
                 .video-container .columns .column .box:hover {
-                    box-shadow: 0 1px 3px rgb(0 0 0 / 30%) !important;
+                    box-shadow: var(--x-shadow) !important;
                 }
                 :root[data-theme=dark] .video-container .columns .column .box:hover {
                     border: 1px solid #363636;
@@ -2744,59 +2716,73 @@
                 .video-container .columns .column .box .tags .tag {
                     padding: .1rem .4rem;
                 }
-
-                nav.pagination {
-                    display: none;
-                    margin: 0;
-                    padding: 20px 0;
+                `;
+				const avatarBoxStyle = `
+                .actor-box {
+                    padding: 10px !important;
+                    margin: 10px !important;
+                    width: var(--x-thumb-w) !important;
+                    box-shadow: var(--x-shadow) !important;
+                }
+                .actor-box a figure.image {
+                    aspect-ratio: var(--x-avatar-ratio);
+                }
+                .actor-box a figure span.avatar {
+                    width: 100% !important;
+                    height: 100% !important;
+                }
+                .actor-box a strong {
+                    padding-top: 10px;
                 }
                 `;
-				this.globalDark(`${this.style}${this._style}${this.customStyle}${style}`);
+				const cardBoxStyle = `
+                #series.section-container .x-item,
+                #makers.section-container .x-item {
+                    padding: 10px;
+                }
+                #series.section-container .x-item .box,
+                #makers.section-container .x-item .box {
+                    padding: 20px;
+                    box-shadow: var(--x-shadow) !important;
+                }
+                #series.section-container .x-item .box strong,
+                #makers.section-container .x-item .box strong {
+                    display: block;
+                }
+                `;
+				this.globalDark(
+					`${this.style}${this._style}${this.customStyle}${style}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}`
+				);
 				this.listMovieTitle();
 			},
 			contentLoaded() {
 				this._globalSearch();
 				this.globalClick([".video-container a", ".section-container a"]);
-
 				this.modifyLayout();
 			},
 			load() {
 				this.changeScrollBarColor();
 			},
+			getContainer(node = DOC) {
+				const selectors = [".video-container:not(.awards) .columns", ".section-container:not(.awards)"];
+				const container = node.querySelectorAll(selectors)[0];
+				const id = container.id || container.parentElement.id;
+				if (container && id) return { container, id };
+			},
 			modifyLayout() {
-				const waterfall = DOC.querySelector(".video-container:not(.awards) .columns");
-				// const waterfall =
-				// 	DOC.querySelector(".video-container:not(.awards) .columns") ||
-				// 	DOC.querySelector(".section-container:not(.awards)");
-				if (!waterfall) return;
-				const id = waterfall.id || waterfall.parentElement.id;
+				const container = this.getContainer();
+				if (!container) return;
+				const { container: waterfall, id } = container;
 
 				const _waterfall = waterfall.cloneNode(true);
-
-				let items = [];
-				// #videos.videos.video-container > .grid.columns > .grid-item.column/.horz-cover > a.box
-				if (id === "videos") {
-					_waterfall.setAttribute("class", "columns x-show");
-					items = this.modifyMovieBox(_waterfall);
-				}
-				if (id === "actors") {
-					console.log(id);
-				}
-				// #actors.actors.section-container > .box.actor-box > a
-				// if (id === "actors") items = this.modifyAvatarBox(_waterfall);
-				// #series.section-container > .columns > .column.is-3 > .box > a
-				// if (id === "series") items = this.modifyAvatarBox(_waterfall);
-				// #makers.section-container > .columns > .column.is-3 > .box > a
-				// if (id === "makers") items = this.modifyAvatarBox(_waterfall);
-
+				const items = this.modifyItem(_waterfall, id);
 				if (items.length) {
 					_waterfall.innerHTML = "";
 					items.forEach(item => _waterfall.appendChild(item));
 				}
-
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
 
-				const infScroll = this.listScroll(_waterfall, ".column", ".pagination-next");
+				const infScroll = this.listScroll(_waterfall, ".x-item", ".pagination-next");
 				if (!infScroll) {
 					DOC.querySelector("nav.pagination").style.cssText += "display:flex;";
 					return;
@@ -2805,58 +2791,74 @@
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
 					if (!body) return;
-					let items = this.modifyMovieBox(body.querySelector(".video-container"));
+					const container = this.getContainer(body);
+					if (!container) return;
+
+					const { container: waterfall, id } = container;
+					const items = this.modifyItem(waterfall, id);
 					infScroll.appendItems(items);
 					infScroll.options.outlayer.appended(items);
 				});
 			},
+			modifyItem(container, type) {
+				if (type === "videos") {
+					container.setAttribute("class", "columns x-show");
+					return this.modifyMovieBox(container);
+				}
+				container.classList.add("x-show");
+				if (type === "actors") return this.modifyAvatarBox(container);
+				if (["series", "makers"].includes(type)) return this.modifyCardBox(container);
+			},
 			modifyMovieBox(container) {
 				const items = container.querySelectorAll(".column");
 				for (const item of items) {
-					item.setAttribute("class", "column");
-
+					item.setAttribute("class", "column x-item");
+					// modify title
 					const title = item.querySelectorAll([".video-title", ".uid2"])[0];
 					if (title) {
 						title.classList.add("x-ellipsis");
 						title.classList.add("x-title");
 					}
-
+					// modify cover
 					const img = item.querySelector("img");
 					if (!img) continue;
 					img.removeAttribute("class");
 					const { src } = img.dataset;
 					if (src !== img.src) img.src = src;
+					// cover type
 					this._listMovieImgType(item);
 				}
-				this._driveMatch(container);
+				// this._driveMatch(container);
 				return items;
 			},
-			// modifyAvatarBox(container) {
-			// 	const items = container.querySelectorAll(".box.actor-box");
-			// 	for (const item of items) {
-			// 		item.setAttribute("class", "item");
-			// 	}
-			// 	return items;
-			// },
+			modifyAvatarBox(container) {
+				const items = container.querySelectorAll(".box.actor-box");
+				for (const item of items) {
+					item.classList.add("x-item");
+				}
+				return items;
+			},
+			modifyCardBox(container) {
+				const items = container.querySelectorAll(".column.is-3");
+				for (const item of items) {
+					item.classList.add("x-item");
+					item.querySelector("strong").classList.add("x-ellipsis");
+				}
+				return items;
+			},
+
 			_listMovieImgType(node) {
 				const item = node.querySelector(".box");
 				if (!item) return;
 
-				const condition = [
-					{
-						regex: /\/thumbs\//gi,
-						replace: val => val.replace(/\/thumbs\//gi, "/covers/"),
-					},
-				];
-
+				const condition = [{ regex: /\/thumbs\//gi, replace: val => val.replace(/\/thumbs\//gi, "/covers/") }];
 				this.listMovieImgType(item, condition);
 			},
-			async _driveMatch(node = DOC) {
+			async _driveMatch(node) {
 				const items = node.querySelectorAll(".column");
 				for (const item of items) {
 					const code = item.querySelector(".uid")?.textContent?.trim();
 					if (!code) continue;
-
 					const res = await this.driveMatch({ code, res: "list" });
 					if (!res?.length) continue;
 
