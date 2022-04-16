@@ -2955,7 +2955,9 @@
 			},
 		};
 		movie = {
-			docStart() {},
+			docStart() {
+				this.globalDark(`${this.style}${this._style}`);
+			},
 			contentLoaded() {
 				this._globalSearch();
 				this.globalClick([".message.video-panel .message-body .tile-images.tile-small a"]);
