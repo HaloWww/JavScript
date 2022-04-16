@@ -1297,12 +1297,12 @@
 			let num = parseInt(this.L_MTL ?? 0, 10);
 			if (this.L_MTH && num < 1) num = 1;
 
-			GM_addStyle(`
-			.x-title {
+			return `
+            .x-title {
 			    -webkit-line-clamp: ${num <= 0 ? "unset" : num};
 			    ${this.L_MTH ? `height: calc(var(--x-line-h) * ${num}) !important;` : ""}
 			}
-			`);
+            `;
 		};
 		// L_SCROLL
 		listScroll = (container, itemSelector, path) => {
@@ -1831,10 +1831,9 @@
 				}
                 `;
 				this.globalDark(
-					`${this.style}${this._style}${this.boxStyle}${this.customStyle}${style}`,
+					`${this.style}${this._style}${this.boxStyle}${this.customStyle}${style}${this.listMovieTitle()}`,
 					`${this.dmStyle}${this._dmStyle}${this.dmBoxStyle}${dmStyle}`
 				);
-				this.listMovieTitle();
 			},
 			contentLoaded() {
 				const nav = DOC.querySelector(".search-header .nav");
@@ -2751,9 +2750,10 @@
                 }
                 `;
 				this.globalDark(
-					`${this.style}${this._style}${this.customStyle}${style}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}`
+					`${this.style}${this._style}${
+						this.customStyle
+					}${style}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
 				);
-				this.listMovieTitle();
 			},
 			contentLoaded() {
 				this._globalSearch();
@@ -2828,7 +2828,7 @@
 					// cover type
 					this._listMovieImgType(item);
 				}
-				// this._driveMatch(container);
+				this._driveMatch(container);
 				return items;
 			},
 			modifyAvatarBox(container) {
