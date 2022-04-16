@@ -1135,6 +1135,7 @@
             margin-bottom: 20px;
             color: var(--x-sub-ftc);
             text-align: center;
+            font-size: 14px !important;
         }
         .x-in {
             transition: opacity .25s linear;
@@ -2606,7 +2607,7 @@
 
 		excludeMenu = ["G_DARK", "M", "D"];
 		routes = {
-			list: /^\/$|^\/(censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
+			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
 			user: /^\/users\//i,
 		};
@@ -2615,6 +2616,9 @@
 		_style = `
         html {
             overflow: overlay;
+        }
+        body {
+            min-height: auto;
         }
         .app-desktop-banner,
         #footer {
@@ -2644,9 +2648,18 @@
 		// modules
 		list = {
 			docStart() {
-				const style = `
+				let style = `
                 section.section {
-                    padding-bottom: 0;
+                    padding: 20px 20px 0;
+                }
+                #search-bar-container {
+                    overflow-x: hidden;
+                    margin: 0 0 20px !important;
+                    padding: 0 !important;
+                }
+                #search-bar-container .column {
+                    margin: 0 !important;
+                    padding: 0 !important;
                 }
                 #search-type,
                 #video-search,
@@ -2654,6 +2667,31 @@
                     border: none;
                     box-shadow: none;
                 }
+                .notification:not(:last-child),
+                .title:not(:last-child) {
+                    margin-bottom: 20px !important;
+                }
+                .main-title {
+                    padding: 0 !important;
+                }
+                .tabs.is-boxed {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                .index-toolbar,
+                .actor-filter-toolbar {
+                    padding: 20px 0 0 !important;
+                }
+                .index-toolbar .button-group {
+                    margin: 0 !important;
+                }
+                #tags {
+                    margin: 0 !important;
+                }
+                .actor-filter {
+                    margin: 20px 0 0 !important;
+                }
+
                 .video-container:not(.awards) .columns,
                 .section-container:not(.awards) {
                     margin: 10px auto;
@@ -2670,6 +2708,46 @@
                     border: none !important;
                 }
                 `;
+				if (/^\/(video_codes|series|makers|directors)/i.test(location.pathname)) {
+					style = `${style}
+					.columns.is-mobile.section-columns {
+					    padding: 0 !important;
+					    margin: 0 0 10px !important;
+					}
+                    .columns.is-mobile.section-columns .column.section-title {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    .columns.is-mobile.section-columns + .columns {
+                        margin: 0 0 20px !important;
+                        padding: 0 !important;
+                    }
+                    .columns.is-mobile.section-columns + .columns .column.section-addition {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                    }
+					`;
+				}
+				if (/^\/rankings/i.test(location.pathname)) {
+					style = `${style}
+                    section.section .section {
+                        padding: 0 !important;
+                    }
+                    .title.is-4.divider-title {
+                        padding: 20px 0 !important;
+                        margin: 0 !important;
+                    }
+                    .awards.section-container {
+                        padding: 10px 0 !important;
+                        margin: 0 -10px !important;
+                    }
+                    .awards,
+                    .awards .videos {
+                        padding: 0 !important;
+                    }
+                    `;
+				}
+
 				const movieBoxStyle = `
                 .video-container .columns .column {
                     padding: 10px !important;
@@ -2736,15 +2814,20 @@
                 `;
 				const cardBoxStyle = `
                 #series.section-container .x-item,
+                #codes.section-container .x-item,
                 #makers.section-container .x-item {
                     padding: 10px;
+                    width: fit-content;
                 }
                 #series.section-container .x-item .box,
+                #codes.section-container .x-item .box,
                 #makers.section-container .x-item .box {
-                    padding: 20px;
+                    padding: 10px;
                     box-shadow: var(--x-shadow) !important;
+                    width: var(--x-cover-w) !important;
                 }
                 #series.section-container .x-item .box strong,
+                #codes.section-container .x-item .box strong,
                 #makers.section-container .x-item .box strong {
                     display: block;
                 }
@@ -2781,6 +2864,7 @@
 					items.forEach(item => _waterfall.appendChild(item));
 				}
 				waterfall.parentElement.replaceChild(_waterfall, waterfall);
+				if (!items.length) return _waterfall.classList.add("x-in");
 
 				const infScroll = this.listScroll(_waterfall, ".x-item", ".pagination-next");
 				if (!infScroll) {
@@ -2807,7 +2891,7 @@
 				}
 				container.classList.add("x-show");
 				if (type === "actors") return this.modifyAvatarBox(container);
-				if (["series", "makers"].includes(type)) return this.modifyCardBox(container);
+				if (["series", "makers", "codes"].includes(type)) return this.modifyCardBox(container);
 			},
 			modifyMovieBox(container) {
 				const items = container.querySelectorAll(".column");
