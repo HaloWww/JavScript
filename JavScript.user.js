@@ -29,8 +29,8 @@
 // @grant           GM_getValue
 // @grant           GM_info
 // @license         GPL-3.0-only
-// @compatible      edge
 // @compatible      chrome
+// @compatible      edge
 // ==/UserScript==
 
 /**
@@ -2609,7 +2609,7 @@
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
-			user: /^\/users\//i,
+			// user: /^\/users\//i,
 		};
 
 		// styles
@@ -2618,7 +2618,7 @@
             overflow: overlay;
         }
         body {
-            min-height: auto;
+            min-height: 100%;
         }
         .app-desktop-banner,
         #footer {
@@ -2626,6 +2626,30 @@
         }
         .float-buttons {
             right: 8px;
+        }
+        `;
+		_customStyle = `
+        section.section {
+            padding: 20px 20px 0;
+        }
+        #search-bar-container {
+            overflow-x: hidden;
+            margin: 0 0 20px !important;
+            padding: 0 !important;
+        }
+        #search-bar-container .column {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        #search-type,
+        #video-search,
+        #video-search:hover {
+            border: none;
+            box-shadow: none;
+        }
+        .notification:not(:last-child),
+        .title:not(:last-child) {
+            margin-bottom: 20px !important;
         }
         `;
 
@@ -2642,6 +2666,9 @@
             ::-webkit-scrollbar-thumb {
                 background: var(--x-grey) !important;
             }
+            img {
+                filter: brightness(.9) contrast(.9) !important;
+            }
             `);
 		};
 
@@ -2649,28 +2676,6 @@
 		list = {
 			docStart() {
 				let style = `
-                section.section {
-                    padding: 20px 20px 0;
-                }
-                #search-bar-container {
-                    overflow-x: hidden;
-                    margin: 0 0 20px !important;
-                    padding: 0 !important;
-                }
-                #search-bar-container .column {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                #search-type,
-                #video-search,
-                #video-search:hover {
-                    border: none;
-                    box-shadow: none;
-                }
-                .notification:not(:last-child),
-                .title:not(:last-child) {
-                    margin-bottom: 20px !important;
-                }
                 .main-title {
                     padding: 0 !important;
                 }
@@ -2682,10 +2687,8 @@
                 .actor-filter-toolbar {
                     padding: 20px 0 0 !important;
                 }
+                #tags,
                 .index-toolbar .button-group {
-                    margin: 0 !important;
-                }
-                #tags {
                     margin: 0 !important;
                 }
                 .actor-filter {
@@ -2833,9 +2836,9 @@
                 }
                 `;
 				this.globalDark(
-					`${this.style}${this._style}${
-						this.customStyle
-					}${style}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
+					`${this.style}${this._style}${this.customStyle}${style}${
+						this._customStyle
+					}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
 				);
 			},
 			contentLoaded() {
@@ -2956,7 +2959,8 @@
 		};
 		movie = {
 			docStart() {
-				this.globalDark(`${this.style}${this._style}`);
+				const style = ``;
+				this.globalDark(`${this.style}${this._style}${this._customStyle}${style}`);
 			},
 			contentLoaded() {
 				this._globalSearch();
@@ -2966,7 +2970,7 @@
 				this.changeScrollBarColor();
 			},
 		};
-		users = {};
+		// users = {};
 	}
 
 	// 115
