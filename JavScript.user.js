@@ -327,25 +327,6 @@
 					},
 				},
 				{
-					site: "BestJavPorn",
-					host: "https://www2.bestjavporn.com/",
-					search: "search/%s/",
-					selectors: "#main article",
-					filter: {
-						name: e => e?.querySelector("a").title,
-						zh: e => /中文/g.test(e?.querySelector(".hd-video")?.textContent ?? ""),
-					},
-				},
-				{
-					site: "JavHHH",
-					host: "https://javhhh.com/",
-					search: "v/?wd=%s",
-					selectors: "#wrapper .typelist .i-container",
-					filter: {
-						name: e => e?.querySelector("img.img-responsive").title,
-					},
-				},
-				{
 					site: "Avgle",
 					host: "https://avgle.com/",
 					search: "search/videos?search_query=%s&search_type=videos",
@@ -688,7 +669,7 @@
 					name: "在线播放",
 					key: "M_PLAYER",
 					type: "switch",
-					info: `获取自 <a href="https://netflav.com/" class="link-primary">Netflav</a>, <a href="https://www2.bestjavporn.com/" class="link-primary">BestJavPorn</a>, <a href="https://javhhh.com/" class="link-primary">JavHHH</a>, <a href="https://avgle.com/" class="link-primary">Avgle</a>`,
+					info: `获取自 <a href="https://netflav.com/" class="link-primary">Netflav</a>, <a href="https://avgle.com/" class="link-primary">Avgle</a>`,
 					defaultVal: true,
 				},
 				{
@@ -959,7 +940,7 @@
                                         控制面板
                                         -
                                         <a
-                                            href="https://sleazyfork.org/scripts/435360"
+                                            href="https://sleazyfork.org/zh-CN/scripts/435360-javscript"
                                             class="link-secondary text-decoration-none"
                                             target="_blank"
                                         >
