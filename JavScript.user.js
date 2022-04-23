@@ -2940,7 +2940,20 @@
 		};
 		movie = {
 			docStart() {
-				const style = ``;
+				const style = `
+                .video-meta-panel {
+                    padding: 0;
+                    margin-bottom: 20px;
+                }
+                .video-meta-panel > .columns {
+                    margin: 0;
+                    padding: 0;
+                }
+                .video-meta-panel > .columns > .column {
+                    padding: 10px;
+                    margin: 0;
+                }
+                `;
 				this.globalDark(`${this.style}${this._style}${this._customStyle}${style}`);
 			},
 			contentLoaded() {
