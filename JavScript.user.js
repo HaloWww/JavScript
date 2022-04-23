@@ -397,17 +397,17 @@
 		static async movieTitle(sentence) {
 			const st = encodeURIComponent(sentence.trim());
 			const data = {
-				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1642125176704,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
+				async: `translate,sl:auto,tl:zh-CN,st:${st},id:1650701080679,qc:true,ac:false,_id:tw-async-translate,_pms:s,_fmt:pc`,
 			};
 
 			const res = await request(
-				"https://www.google.com/async/translate?vet=12ahUKEwi03Jv2kLD1AhWRI0QIHe_TDKAQqDh6BAgCECY..i&ei=ZtfgYbSRO5HHkPIP76ezgAo&yv=3",
+				"https://www.google.com/async/translate?vet=12ahUKEwixq63V3Kn3AhUCJUQIHdMJDpkQqDh6BAgCECw..i&ei=CbNjYvGCPYLKkPIP05O4yAk&yv=3",
 				data,
 				"POST",
 				{ responseType: "" }
 			);
 
-			return res?.querySelector("#tw-answ-target-text").textContent ?? "";
+			return res?.querySelector("#tw-answ-target-text")?.textContent ?? "";
 		}
 		static async movieStar(code) {
 			code = code.toUpperCase();
@@ -418,10 +418,10 @@
 			if (!href) return;
 
 			res = await request(`${site}${href}`);
-			res = res?.querySelectorAll(".panel-block");
+			res = res?.querySelectorAll(".movie-panel-info > .panel-block");
 			if (!res?.length) return;
 
-			res = res[res.length - 3]?.querySelector(".value").textContent.trim();
+			res = res[res.length - 2]?.querySelector(".value").textContent.trim();
 			return res
 				.split(/\n/)
 				.filter(item => item.indexOf("♀") !== -1)
