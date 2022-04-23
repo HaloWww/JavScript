@@ -2586,7 +2586,7 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "M", "D"];
+		excludeMenu = ["G_DARK", "M", "D_CID", "D_VERIFY", "D_RENAME"];
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
