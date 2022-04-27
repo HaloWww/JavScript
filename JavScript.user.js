@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.1.0
+// @version         3.1.1
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -212,7 +212,7 @@
 
 		return {
 			prefix: codes[0],
-			regex: new RegExp(codes.join(".{0,4}"), "i"),
+			regex: new RegExp(codes.join("[0-_]{0,4}"), "i"),
 		};
 	};
 
