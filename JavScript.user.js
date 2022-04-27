@@ -212,7 +212,7 @@
 
 		return {
 			prefix: codes[0],
-			regex: new RegExp(codes.join("[0-_]{0,4}"), "i"),
+			regex: new RegExp(codes.join("(0|-|_){0,4}"), "i"),
 		};
 	};
 
