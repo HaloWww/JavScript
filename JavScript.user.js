@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.1.1
+// @version         3.1.2
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -736,7 +736,7 @@
 					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写；番号为必须值，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，标题可能已包含番号，自行判断',
+					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写；番号为必须值，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，标题可能已包含番号，自行判断<br><code>${序号}</code> 仅作用资源文件，数字 1 起始',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
@@ -1516,10 +1516,11 @@
 
 			if (!codeParse(code).regex.test(file_name)) file_name = `${code} - ${file_name}`;
 
+			const numRegex = /\$\{序号\}/g;
 			res = res
 				.filter(item => item.ico)
-				.map(item => {
-					item.file_name = `${file_name}.${item.ico}`;
+				.map((item, index) => {
+					item.file_name = `${file_name.replace(numRegex, index + 1)}.${item.ico}`;
 					return item;
 				});
 
