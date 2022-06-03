@@ -397,7 +397,7 @@
 			const site = "https://javdb.com";
 
 			let res = await request(`${site}/search?q=${code}&sb=0`);
-			const href = res?.querySelector("#videos .grid-item a").getAttribute("href");
+			const href = res?.querySelector(".movie-list .item a")?.getAttribute("href");
 			if (!href) return;
 
 			res = await request(`${site}${href}`);
@@ -720,7 +720,7 @@
 					name: "下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong>，建议 <strong>cid</strong> 效率更高<br><strong>动态参数</strong> 支持网盘根目录下文件夹名称<br>默认动态参数 <code>${云下载}</code>",
+					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong>，建议 <strong>cid</strong> 效率更高<br><strong>动态参数</strong> 支持网盘 <strong>根目录</strong> 下文件夹名称<br>默认动态参数 <code>${云下载}</code>",
 					placeholder: "cid 或 动态参数",
 					defaultVal: "${云下载}",
 				},
@@ -736,7 +736,7 @@
 					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写；番号为必须值，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，标题可能已包含番号，自行判断<br><code>${序号}</code> 仅作用资源文件，数字 1 起始',
+					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写；番号为必须值，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，标题可能已包含番号，自行判断<br><code>${序号}</code> 仅作用于资源文件，数字 1 起',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
@@ -1524,7 +1524,9 @@
 					return item;
 				});
 
-			unique(res.map(item => item.cid).filter(item => item !== cid)).forEach(fid => res.push({ fid, file_name }));
+			unique(res.map(item => item.cid).filter(item => item !== cid)).forEach(fid =>
+				res.push({ fid, file_name: file_name.replace(numRegex, "") })
+			);
 
 			return Apis.driveRename(res);
 		};
@@ -2589,7 +2591,7 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "M", "D_CID", "D_VERIFY", "D_RENAME"];
+		excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
@@ -2819,19 +2821,19 @@
                     display: block;
                 }
                 `;
-				this.globalDark(
-					`${this.style}${this._style}${this.customStyle}${style}${
-						this._customStyle
-					}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
-				);
+				// this.globalDark(
+				// 	`${this.style}${this._style}${this.customStyle}${style}${
+				// 		this._customStyle
+				// 	}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
+				// );
 			},
 			contentLoaded() {
-				this._globalSearch();
-				this.globalClick([".video-container a", ".section-container a"]);
-				this.modifyLayout();
+				// this._globalSearch();
+				// this.globalClick([".video-container a", ".section-container a"]);
+				// this.modifyLayout();
 			},
 			load() {
-				this.changeScrollBarColor();
+				// this.changeScrollBarColor();
 			},
 			getContainer(node = DOC) {
 				const selectors = [".video-container:not(.awards) .columns", ".section-container:not(.awards)"];
