@@ -180,6 +180,9 @@
 		});
 		return Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
 	};
+	const openInTab = (url, active = true, options = {}) => {
+		GM_openInTab(url, { active: !!active, insert: true, setParent: true, incognito: false, ...options });
+	};
 	const notify = msg => {
 		GM_notification({
 			highlight: true,
@@ -188,7 +191,7 @@
 			...msg,
 			text: msg?.text ?? GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
-			onclick: msg?.clickUrl ? () => GM_openInTab(msg.clickUrl, { setParent: true, active: true }) : () => {},
+			onclick: msg?.clickUrl ? () => openInTab(msg.clickUrl) : () => {},
 		});
 	};
 	const verify = () => {
@@ -1197,10 +1200,7 @@
 					const text = (await navigator.clipboard.readText()).trim();
 					if (!text) return;
 
-					GM_openInTab(`${location.origin}${pathname.replace("%s", text)}`, {
-						setParent: true,
-						active: true,
-					});
+					openInTab(`${location.origin}${pathname.replace("%s", text)}`);
 				}
 			});
 
@@ -1226,7 +1226,7 @@
 
 				e.preventDefault();
 				e.stopPropagation();
-				GM_openInTab(url, { setParent: true, active: true });
+				openInTab(url);
 			});
 
 			const getTarget = e => {
@@ -1262,7 +1262,7 @@
 				const { clientX: _clientX, clientY: _clientY } = _event;
 				if (Math.abs(clientX - _clientX) + Math.abs(clientY - _clientY) > 5) return;
 
-				GM_openInTab(target.href, { setParent: true, active: false });
+				openInTab(target.href, false);
 			});
 		};
 
@@ -2332,7 +2332,7 @@
 					node.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
-						GM_openInTab(src, { setParent: true, active: true });
+						openInTab(src);
 					});
 				} else {
 					node.setAttribute("title", "点击切换");
@@ -2603,15 +2603,15 @@
         html {
             overflow: overlay;
         }
-        body {
-            min-height: 100%;
-        }
-        .app-desktop-banner,
-        #footer {
-            display: none !important;
+        #search-type,
+        #video-search {
+            border: none;
         }
         .float-buttons {
             right: 8px;
+        }
+        #footer {
+            display: none;
         }
         `;
 		_customStyle = `
@@ -2661,171 +2661,220 @@
 		// modules
 		list = {
 			docStart() {
-				let style = `
-                .main-title {
-                    padding: 0 !important;
-                }
-                .tabs.is-boxed {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                .index-toolbar,
-                .actor-filter-toolbar {
-                    padding: 20px 0 0 !important;
-                }
-                #tags,
-                .index-toolbar .button-group {
-                    margin: 0 !important;
-                }
-                .actor-filter {
-                    margin: 20px 0 0 !important;
-                }
+				// let style = `
+				// .main-title {
+				//     padding: 0 !important;
+				// }
+				// .tabs.is-boxed {
+				//     margin: 0 !important;
+				//     padding: 0 !important;
+				// }
+				// .index-toolbar,
+				// .actor-filter-toolbar {
+				//     padding: 20px 0 0 !important;
+				// }
+				// #tags,
+				// .index-toolbar .button-group {
+				//     margin: 0 !important;
+				// }
+				// .actor-filter {
+				//     margin: 20px 0 0 !important;
+				// }
 
-                .video-container:not(.awards) .columns,
-                .section-container:not(.awards) {
-                    margin: 10px auto;
-                    display: none;
-                    opacity: 0;
-                }
-                nav.pagination {
-                    display: none;
-                    margin: 0 !important;
-                    border: none !important;
-                    padding: 20px 0 40px 0;
-                }
-                :root[data-theme=dark] nav.pagination {
-                    border: none !important;
-                }
-                `;
-				if (/^\/(video_codes|series|makers|directors)/i.test(location.pathname)) {
-					style = `${style}
-					.columns.is-mobile.section-columns {
-					    padding: 0 !important;
-					    margin: 0 0 10px !important;
-					}
-                    .columns.is-mobile.section-columns .column.section-title {
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    .columns.is-mobile.section-columns + .columns {
-                        margin: 0 0 20px !important;
-                        padding: 0 !important;
-                    }
-                    .columns.is-mobile.section-columns + .columns .column.section-addition {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                    }
-					`;
-				}
-				if (/^\/rankings/i.test(location.pathname)) {
-					style = `${style}
-                    section.section .section {
-                        padding: 0 !important;
-                    }
-                    .title.is-4.divider-title {
-                        padding: 20px 0 !important;
-                        margin: 0 !important;
-                    }
-                    .awards.section-container {
-                        padding: 10px 0 !important;
-                        margin: 0 -10px !important;
-                    }
-                    .awards,
-                    .awards .videos {
-                        padding: 0 !important;
-                    }
-                    `;
-				}
+				// .video-container:not(.awards) .columns,
+				// .section-container:not(.awards) {
+				//     margin: 10px auto;
+				//     display: none;
+				//     opacity: 0;
+				// }
+				// nav.pagination {
+				//     display: none;
+				//     margin: 0 !important;
+				//     border: none !important;
+				//     padding: 20px 0 40px 0;
+				// }
+				// :root[data-theme=dark] nav.pagination {
+				//     border: none !important;
+				// }
+				// `;
+				// if (/^\/(video_codes|series|makers|directors)/i.test(location.pathname)) {
+				// 	style = `${style}
+				// 	.columns.is-mobile.section-columns {
+				// 	    padding: 0 !important;
+				// 	    margin: 0 0 10px !important;
+				// 	}
+				//     .columns.is-mobile.section-columns .column.section-title {
+				//         margin: 0 !important;
+				//         padding: 0 !important;
+				//     }
+				//     .columns.is-mobile.section-columns + .columns {
+				//         margin: 0 0 20px !important;
+				//         padding: 0 !important;
+				//     }
+				//     .columns.is-mobile.section-columns + .columns .column.section-addition {
+				//         padding: 0 !important;
+				//         margin: 0 !important;
+				//     }
+				// 	`;
+				// }
+				// if (/^\/rankings/i.test(location.pathname)) {
+				// 	style = `${style}
+				//     section.section .section {
+				//         padding: 0 !important;
+				//     }
+				//     .title.is-4.divider-title {
+				//         padding: 20px 0 !important;
+				//         margin: 0 !important;
+				//     }
+				//     .awards.section-container {
+				//         padding: 10px 0 !important;
+				//         margin: 0 -10px !important;
+				//     }
+				//     .awards,
+				//     .awards .videos {
+				//         padding: 0 !important;
+				//     }
+				//     `;
+				// }
 
-				const movieBoxStyle = `
-                .video-container .columns .column {
-                    padding: 10px !important;
-                    margin: 0;
-                    min-width: unset;
-                    max-width: none;
-                }
-                .video-container .columns .column .box {
-                    padding: 10px;
-                    width: var(--x-thumb-w);
-                    box-shadow: var(--x-shadow) !important;
-                }
-                .video-container .columns .column .box:hover {
-                    box-shadow: var(--x-shadow) !important;
-                }
-                :root[data-theme=dark] .video-container .columns .column .box:hover {
-                    border: 1px solid #363636;
-                }
-                .video-container .columns .column .box .item-image {
-                    aspect-ratio: var(--x-thumb-ratio);
-                }
-                .video-container .columns .column .box .item-image:hover img {
-                    transform: none;
-                }
-                .video-container .columns .column .box .item-image img {
-                    min-height: unset !important;
-                    max-width: none !important;
-                    width: 100% !important;
-                    height: 100% !important;
-                    object-fit: cover !important;
-                }
-                .video-container .columns .column .box .uid,
-                .video-container .columns .column .box .video-title2 {
-                    padding-top: 10px;
-                    font-size: 1em;
-                    line-height: 1.5;
-                }
-                .video-container .columns .column .box .video-title,
-                .video-container .columns .column .box .uid2 {
-                    color: #4a4a4a;
-                    font-size: .8rem;
-                }
-                .video-container .columns .column .box .tags .tag {
-                    padding: .1rem .4rem;
-                }
-                `;
-				const avatarBoxStyle = `
-                .actor-box {
-                    padding: 10px !important;
-                    margin: 10px !important;
-                    width: var(--x-thumb-w) !important;
-                    box-shadow: var(--x-shadow) !important;
-                }
-                .actor-box a figure.image {
-                    aspect-ratio: var(--x-avatar-ratio);
-                }
-                .actor-box a figure span.avatar {
-                    width: 100% !important;
-                    height: 100% !important;
-                }
-                .actor-box a strong {
-                    padding-top: 10px;
-                }
-                `;
-				const cardBoxStyle = `
-                #series.section-container .x-item,
-                #codes.section-container .x-item,
-                #makers.section-container .x-item {
-                    padding: 10px;
-                    width: fit-content;
-                }
-                #series.section-container .x-item .box,
-                #codes.section-container .x-item .box,
-                #makers.section-container .x-item .box {
-                    padding: 10px;
-                    box-shadow: var(--x-shadow) !important;
-                    width: var(--x-cover-w) !important;
-                }
-                #series.section-container .x-item .box strong,
-                #codes.section-container .x-item .box strong,
-                #makers.section-container .x-item .box strong {
-                    display: block;
-                }
-                `;
+				// const movieBoxStyle = `
+				// .video-container .columns .column {
+				//     padding: 10px !important;
+				//     margin: 0;
+				//     min-width: unset;
+				//     max-width: none;
+				// }
+				// .video-container .columns .column .box {
+				//     padding: 10px;
+				//     width: var(--x-thumb-w);
+				//     box-shadow: var(--x-shadow) !important;
+				// }
+				// .video-container .columns .column .box:hover {
+				//     box-shadow: var(--x-shadow) !important;
+				// }
+				// :root[data-theme=dark] .video-container .columns .column .box:hover {
+				//     border: 1px solid #363636;
+				// }
+				// .video-container .columns .column .box .item-image {
+				//     aspect-ratio: var(--x-thumb-ratio);
+				// }
+				// .video-container .columns .column .box .item-image:hover img {
+				//     transform: none;
+				// }
+				// .video-container .columns .column .box .item-image img {
+				//     min-height: unset !important;
+				//     max-width: none !important;
+				//     width: 100% !important;
+				//     height: 100% !important;
+				//     object-fit: cover !important;
+				// }
+				// .video-container .columns .column .box .uid,
+				// .video-container .columns .column .box .video-title2 {
+				//     padding-top: 10px;
+				//     font-size: 1em;
+				//     line-height: 1.5;
+				// }
+				// .video-container .columns .column .box .video-title,
+				// .video-container .columns .column .box .uid2 {
+				//     color: #4a4a4a;
+				//     font-size: .8rem;
+				// }
+				// .video-container .columns .column .box .tags .tag {
+				//     padding: .1rem .4rem;
+				// }
+				// `;
+				// const avatarBoxStyle = `
+				// .actor-box {
+				//     padding: 10px !important;
+				//     margin: 10px !important;
+				//     width: var(--x-thumb-w) !important;
+				//     box-shadow: var(--x-shadow) !important;
+				// }
+				// .actor-box a figure.image {
+				//     aspect-ratio: var(--x-avatar-ratio);
+				// }
+				// .actor-box a figure span.avatar {
+				//     width: 100% !important;
+				//     height: 100% !important;
+				// }
+				// .actor-box a strong {
+				//     padding-top: 10px;
+				// }
+				// `;
+				// const cardBoxStyle = `
+				// #series.section-container .x-item,
+				// #codes.section-container .x-item,
+				// #makers.section-container .x-item {
+				//     padding: 10px;
+				//     width: fit-content;
+				// }
+				// #series.section-container .x-item .box,
+				// #codes.section-container .x-item .box,
+				// #makers.section-container .x-item .box {
+				//     padding: 10px;
+				//     box-shadow: var(--x-shadow) !important;
+				//     width: var(--x-cover-w) !important;
+				// }
+				// #series.section-container .x-item .box strong,
+				// #codes.section-container .x-item .box strong,
+				// #makers.section-container .x-item .box strong {
+				//     display: block;
+				// }
+				// `;
 				// this.globalDark(
 				// 	`${this.style}${this._style}${this.customStyle}${style}${
 				// 		this._customStyle
 				// 	}${movieBoxStyle}${avatarBoxStyle}${cardBoxStyle}${this.listMovieTitle()}`
 				// );
+				let style = `
+                .movie-list {
+                    gap: 20px;
+                }
+                .movie-list {
+                    padding-bottom: 4px;
+                }
+                @media only screen and (max-width: 575.98px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                }
+                @media only screen and (min-width: 576px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(3, minmax(0, 1fr));
+                    }
+                }
+                @media only screen and (min-width: 768px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(4, minmax(0, 1fr));
+                    }
+                }
+                @media only screen and (min-width: 992px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(5, minmax(0, 1fr));
+                    }
+                }
+                @media only screen and (min-width: 1200px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(6, minmax(0, 1fr));
+                    }
+                }
+                @media only screen and (min-width: 1400px) {
+                    .movie-list.v {
+                        grid-template-columns: repeat(8, minmax(0, 1fr));
+                    }
+                }
+                nav.pagination {
+                    margin-top: 16px;
+                    padding: 20px 0 4px 0;
+                }
+                a.box:focus, a.box:hover {
+                    transition: all .2s ease;
+                }
+                .movie-list .item .cover:hover img {
+                    transform: none;
+                }
+                `;
+				this.globalDark(`${this.style}${this._style}${style}`);
 			},
 			contentLoaded() {
 				// this._globalSearch();
@@ -2833,7 +2882,7 @@
 				// this.modifyLayout();
 			},
 			load() {
-				// this.changeScrollBarColor();
+				this.changeScrollBarColor();
 			},
 			getContainer(node = DOC) {
 				const selectors = [".video-container:not(.awards) .columns", ".section-container:not(.awards)"];
