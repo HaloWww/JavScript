@@ -15,6 +15,7 @@
 // @resource        error https://s1.ax1x.com/2022/04/01/q5lcQK.png
 // @connect         *
 // @run-at          document-start
+// @grant           GM_addValueChangeListener
 // @grant           GM_registerMenuCommand
 // @grant           GM_getResourceURL
 // @grant           GM_xmlhttpRequest
@@ -35,9 +36,8 @@
 
 /**
  * TODO:
- * ⏳ 详情 - 磁力列表排序/过滤
- * ⏳ 115 - 手动档?
  * ⏳ 脚本 - JavDB 兼容
+ * ⏳ 115 - 手动档?
  * ⏳ 详情 - 发送磁链至 aria2 下载?
  * ⏳ 列表 - 自定义数据聚合页
  * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
@@ -229,6 +229,7 @@
 			GM_setValue(cdKey, date);
 			GM_setValue("DETAILS", {});
 			GM_setValue("RESOURCE", []);
+			GM_setValue("TEMPORARY_OBS", []);
 		}
 		static getDetail(key) {
 			const details = GM_getValue("DETAILS", {});
@@ -238,6 +239,15 @@
 			const details = GM_getValue("DETAILS", {});
 			details[key] = { ...this.getDetail(key), ...val };
 			GM_setValue("DETAILS", details);
+		}
+		static addTemporaryOb(val) {
+			const obs = GM_getValue("TEMPORARY_OBS", []);
+			if (val) obs.push(val);
+			GM_setValue("TEMPORARY_OBS", obs);
+		}
+		static reduceTemporaryOb(val) {
+			const obs = GM_getValue("TEMPORARY_OBS", []).filter(item => item !== val);
+			GM_setValue("TEMPORARY_OBS", obs);
 		}
 	}
 
@@ -748,6 +758,11 @@
 		route = null;
 		pcUrl = "https://v.anxia.com/?pickcode=";
 
+		listener = {
+			id: null,
+			list: [],
+		};
+
 		init() {
 			Store.init();
 			this.route = Object.keys(this.routes).find(key => this.routes[key].test(location.pathname));
@@ -1211,16 +1226,32 @@
 			});
 		};
 		// G_CLICK
-		globalClick = (selectors, node = DOC) => {
+		globalClick = (selectors, node = DOC, callback) => {
+			node = node || DOC;
+
+			if (this.G_CLICK && this.D_MATCH && !this.listener.id && callback) {
+				this.listener.id = GM_addValueChangeListener("TEMPORARY_OBS", (name, old_value, new_value, remote) => {
+					if (!remote) return;
+					for (const url of unique(this.listener.list)) {
+						if (!new_value.includes(url)) continue;
+						Store.reduceTemporaryOb(url);
+						callback(url);
+					}
+				});
+			}
+
 			node.addEventListener("click", e => {
-				const { target } = e;
+				let { target } = e;
 
 				let url = "";
 				if (target.classList.contains("x-player")) {
 					url = `${this.pcUrl}${target.dataset.code}`;
 				} else if (this.G_CLICK) {
-					const target = getTarget(e);
-					if (target) url = target.href;
+					target = getTarget(e);
+					if (target) {
+						url = target.href;
+						if (this.D_MATCH && callback) this.listener.list.push(url);
+					}
 				}
 				if (!url) return;
 
@@ -1229,8 +1260,8 @@
 				openInTab(url);
 			});
 
-			const getTarget = e => {
-				const item = e.target.closest(selectors);
+			const getTarget = ({ target }) => {
+				const item = target.closest(selectors);
 				return !item?.href || !node.contains(item) ? false : item;
 			};
 
@@ -1245,7 +1276,6 @@
 				if (!target) return;
 
 				e.preventDefault();
-
 				target.oncontextmenu = e => e.preventDefault();
 				_event = e;
 			});
@@ -1254,14 +1284,14 @@
 				if (e.button !== 2) return;
 
 				const target = getTarget(e);
-				if (!target || !_event) return;
+				if (!_event || !target) return;
 
 				e.preventDefault();
-
 				const { clientX, clientY } = e;
 				const { clientX: _clientX, clientY: _clientY } = _event;
 				if (Math.abs(clientX - _clientX) + Math.abs(clientY - _clientY) > 5) return;
 
+				if (this.D_MATCH && callback) this.listener.list.push(target.href);
 				openInTab(target.href, false);
 			});
 		};
@@ -1464,7 +1494,10 @@
 				if (_res?.length) {
 					_res = _res.filter(({ n }) => regex.test(n));
 				}
-				if (!res) Store.upDetail(code, { res: _res });
+				if (!res) {
+					Store.upDetail(code, { res: _res });
+					if (this.G_CLICK) Store.addTemporaryOb(location.href);
+				}
 				res = _res;
 			}
 
@@ -1736,8 +1769,8 @@
 		_globalSearch = () => {
 			this.globalSearch("#search-input", "/search/%s");
 		};
-		_globalClick = () => {
-			this.globalClick([".movie-box", ".avatar-box"]);
+		_globalClick = callback => {
+			this.globalClick([".movie-box", ".avatar-box"], "", callback);
 		};
 		modifyMovieBox = (node = DOC) => {
 			const items = node.querySelectorAll(".movie-box");
@@ -1827,7 +1860,10 @@
 				if (nav) nav.classList.replace("nav-tabs", "nav-pills");
 
 				this._globalSearch();
-				this._globalClick();
+				this._globalClick(url => {
+					const node = DOC.querySelector(`a.movie-box[href="${url}"]`);
+					if (node) this.updateMatchStatus(node);
+				});
 
 				this.modifyLayout();
 			},
@@ -1912,18 +1948,21 @@
 			async _driveMatch(node = DOC) {
 				const items = node.querySelectorAll(".movie-box");
 				for (const item of items) {
-					const code = item.querySelector("date")?.textContent?.trim();
-					if (!code) continue;
-
-					const res = await this.driveMatch({ code, res: "list" });
-					if (!res?.length) continue;
-
-					const frame = item.querySelector(".photo-frame");
-					frame.classList.add("x-player");
-					frame.setAttribute("title", "点击播放");
-					frame.setAttribute("data-code", res[0].pc);
-					item.querySelector(".x-title").classList.add("x-matched");
+					await this.updateMatchStatus(item);
 				}
+			},
+			async updateMatchStatus(node) {
+				const code = node.querySelector("date")?.textContent?.trim();
+				if (!code) return;
+
+				const res = await this.driveMatch({ code, res: "list" });
+				if (!res?.length) return;
+
+				const frame = node.querySelector(".photo-frame");
+				frame.classList.add("x-player");
+				frame.setAttribute("title", "点击播放");
+				frame.setAttribute("data-code", res[0].pc);
+				node.querySelector(".x-title").classList.add("x-matched");
 			},
 		};
 		genre = {

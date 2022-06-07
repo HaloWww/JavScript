@@ -16,6 +16,8 @@ module.exports = {
 		GM_info: true,
 		Masonry: true,
 		InfiniteScroll: true,
+		GM_addValueChangeListener: true,
+		GM_removeValueChangeListener: true,
 	},
 	rules: {
 		"max-params": "warn",
