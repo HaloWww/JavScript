@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.2.3
+// @version         3.2.5
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -1384,6 +1384,7 @@
 			if (!this.M_VIDEO) return;
 
 			start && start();
+			await GM_addElement(DOC.head, "meta", { name: "referrer", content: "same-origin" });
 			let video = Store.getDetail(code)?.video;
 			if (!video) {
 				video = await Apis.movieVideo(code, studio);
@@ -2868,7 +2869,7 @@
 	class Drive115 {
 		contentLoaded() {
 			window.focus();
-			DOC.querySelector(".bottom button").addEventListener("click", () => {
+			DOC.querySelector(`#js_ver_code_box button[rel="verify"]`).addEventListener("click", () => {
 				const interval = setInterval(() => {
 					if (DOC.querySelector(".vcode-hint").getAttribute("style").indexOf("none") !== -1) {
 						clearTimer();
@@ -2889,10 +2890,6 @@
 
 	const Process = eval(`new ${Matched.domain}()`);
 	Process.docStart && Process.docStart();
-	Process.contentLoaded &&
-		DOC.addEventListener("DOMContentLoaded", () => {
-			GM_addElement(DOC.head, "meta", { name: "referrer", content: "no-referrer" });
-			Process.contentLoaded();
-		});
+	Process.contentLoaded && DOC.addEventListener("DOMContentLoaded", () => Process.contentLoaded());
 	Process.load && window.addEventListener("load", () => Process.load());
 })();
