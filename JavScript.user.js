@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.2.5
+// @version         3.2.6
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -37,6 +37,7 @@
 /**
  * TODO:
  * ⏳ 脚本 - JavDB 兼容
+ * ⏳ 115 - 离线垃圾文件清理?
  * ⏳ 115 - 手动档?
  * ⏳ 详情 - 发送磁链至 aria2 下载?
  * ⏳ 列表 - 自定义数据聚合页
@@ -315,80 +316,33 @@
 			]);
 
 			r18 = r18?.querySelector("a.js-view-sample");
-
-			return (
-				xrmoo
-					?.querySelector(".card .card-footer a.viewVideo")
-					?.getAttribute("data-link")
-					.replace("_sm_w", "_dmb_w") ||
+			r18 =
 				r18?.getAttribute("data-video-high") ||
 				r18?.getAttribute("data-video-med") ||
-				r18?.getAttribute("data-video-low") ||
-				""
-			);
+				r18?.getAttribute("data-video-low");
+			r18 = r18 ? r18.replace("awscc3001.r18.com", "cc3001.dmm.co.jp") : "";
+
+			xrmoo = xrmoo
+				?.querySelector(".card .card-footer a.viewVideo")
+				?.getAttribute("data-link")
+				.replace("_sm_w", "_dmb_w");
+
+			return r18 || xrmoo || "";
 		}
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
-			const { regex } = codeParse(code);
 
-			const matchList = [
-				{
-					site: "Netflav",
-					host: "https://netflav.com/",
-					search: "search?type=title&keyword=%s",
-					selectors: ".grid_root .grid_cell",
-					filter: {
-						name: e => e?.querySelector(".grid_title").textContent,
-					},
-				},
-				{
-					site: "Avgle",
-					host: "https://avgle.com/",
-					search: "search/videos?search_query=%s&search_type=videos",
-					selectors: ".row .well.well-sm",
-					filter: {
-						name: e => e?.querySelector(".video-title")?.textContent,
-					},
-				},
-			];
+			let netflav = await request(`https://netflav.com/search?type=title&keyword=${code}`);
+			netflav = netflav?.querySelector(".grid_root .grid_cell a")?.getAttribute("href");
+			if (!netflav) return;
 
-			const matched = await Promise.all(
-				matchList.map(({ host, search }) => request(`${host}${search.replace(/%s/g, code)}`))
-			);
+			netflav = await request(`https://netflav.com${netflav}`);
+			netflav = netflav?.querySelector("script#__NEXT_DATA__")?.textContent;
+			if (!netflav) return;
 
-			const players = [];
-			for (let index = 0; index < matchList.length; index++) {
-				let node = matched[index];
-				if (!node) continue;
-
-				const { selectors, site, filter, host } = matchList[index];
-				node = node?.querySelectorAll(selectors);
-				if (!node?.length) continue;
-
-				for (const item of node) {
-					const player = { from: site };
-					Object.keys(filter).forEach(key => {
-						player[key] = filter[key](item) ?? "";
-					});
-
-					const { name } = player;
-					let link = item?.querySelector("a")?.getAttribute("href");
-					if (!name || !regex.test(name) || !link) continue;
-
-					player.link = !link.includes("//") ? `${host}${link.replace(/^\//, "")}` : link;
-					if (!("zh" in player)) player.zh = /中文/g.test(name);
-
-					if (player.zh) {
-						players.unshift(player);
-						break;
-					}
-					players.push(player);
-				}
-
-				if (players.find(item => item.zh)) break;
-			}
-
-			return players.length ? players[0].link : "";
+			netflav = JSON.parse(netflav)?.props?.initialState?.video?.data?.srcs ?? [];
+			netflav = netflav.find(item => item.includes("https://embedgram.com"));
+			if (netflav) return netflav;
 		}
 		static async movieTitle(sentence) {
 			const st = encodeURIComponent(sentence.trim());
@@ -442,7 +396,7 @@
 				},
 				{
 					site: "BTSOW",
-					host: "https://btsow.rest/",
+					host: "https://btsow.com/",
 					search: "search/%s",
 					selectors: ".data-list .row:not(.hidden-xs)",
 					filter: {
@@ -483,7 +437,6 @@
 					magnets.push(magnet);
 				}
 			}
-
 			return magnets;
 		}
 		// drive
@@ -649,7 +602,7 @@
 					key: "L_MTH",
 					type: "switch",
 					info: "影片标题强制等高",
-					defaultVal: false,
+					defaultVal: true,
 				},
 				{
 					name: "标题最大行",
@@ -657,7 +610,7 @@
 					type: "number",
 					info: "影片标题最大显示行数，超出省略。0 不限制 (等高模式下最小有效值 1)",
 					placeholder: "仅支持整数 ≥ 0",
-					defaultVal: 1,
+					defaultVal: 2,
 				},
 				{
 					name: "滚动加载",
@@ -684,7 +637,7 @@
 					name: "在线播放",
 					key: "M_PLAYER",
 					type: "switch",
-					info: `获取自 <a href="https://netflav.com/" class="link-primary">Netflav</a>, <a href="https://avgle.com/" class="link-primary">Avgle</a>`,
+					info: `获取自 <a href="https://netflav.com/" class="link-primary">Netflav</a>`,
 					defaultVal: true,
 				},
 				{
@@ -719,7 +672,7 @@
 					name: "磁力搜索",
 					key: "M_MAGNET",
 					type: "switch",
-					info: `自动去重，获取自 <a href="https://sukebei.nyaa.si/" class="link-primary">Sukebei</a>, <a href="https://btsow.rest/" class="link-primary">BTSOW</a>`,
+					info: `自动去重，获取自 <a href="https://sukebei.nyaa.si/" class="link-primary">Sukebei</a>, <a href="https://btsow.com/" class="link-primary">BTSOW</a>`,
 					defaultVal: true,
 				},
 				{
@@ -1225,7 +1178,6 @@
 
 			if (this.G_CLICK && this.D_MATCH && !this.listener.id && callback) {
 				this.listener.id = GM_addValueChangeListener("TEMPORARY_OBS", (name, old_value, new_value, remote) => {
-					console.log(callback);
 					if (!remote) return;
 					for (const url of unique(this.listener.list)) {
 						if (!new_value.includes(url)) continue;
@@ -1384,7 +1336,6 @@
 			if (!this.M_VIDEO) return;
 
 			start && start();
-			GM_addElement(DOC.head, "meta", { name: "referrer", content: "same-origin" });
 			let video = Store.getDetail(code)?.video;
 			if (!video) {
 				video = await Apis.movieVideo(code, studio);
@@ -2169,9 +2120,13 @@
                     backdrop-filter: blur(50px);
                 }
                 .x-contain {
+                    border: none;
                     opacity: 0;
                     object-fit: contain;
                     z-index: -1;
+                }
+                video.x-contain {
+                    background-color: #000;
                 }
                 .x-contain.x-in {
                     z-index: 9 !important;
@@ -2258,9 +2213,9 @@
 				addCopyTarget("h3", { title: "复制标题" });
 
 				this.initSwitch();
-				this.updateSwitch({ key: "img", title: "预览大图" });
-				this.updateSwitch({ key: "video", title: "预览视频" });
-				this.updateSwitch({ key: "player", title: "在线播放", type: "link" });
+				this.updateSwitch({ key: "img", title: "大图" });
+				this.updateSwitch({ key: "video", title: "预览" });
+				this.updateSwitch({ key: "player", title: "视频", type: "iframe" });
 
 				this._movieTitle();
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
@@ -2346,16 +2301,16 @@
 				});
 			},
 			async updateSwitch({ key, title, type }) {
-				const id = `x-switch-${key}`;
 				if (!type) type = key;
-				const switcher = DOC.querySelector("#x-switch");
 
+				const id = `x-switch-${key}`;
+				const switcher = DOC.querySelector("#x-switch");
 				const start = () => {
 					if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
 					switcher.insertAdjacentHTML(
 						"beforeend",
 						`<div class="btn-group btn-group-sm" role="group" title="查询中...">
-				            <button type="button" class="btn btn-default" for="${id}" disabled>${title}</button>
+				            <button type="button" class="btn btn-default" for="${id}" disabled>查询${title}</button>
 				        </div>`
 					);
 				};
@@ -2364,43 +2319,28 @@
 				const node = switcher.querySelector(`button[for="${id}"]`);
 				if (!node) return;
 
-				const nodeParent = node.parentNode;
-				if (!src) return nodeParent.setAttribute("title", "暂无资源");
+				node.textContent = `${src ? "查看" : "暂无"}${title}`;
+				const { parentNode } = node;
+				if (!src) return parentNode.setAttribute("title", "暂无资源");
 
+				parentNode.setAttribute("title", "点击放大或切换静音");
 				node.removeAttribute("disabled");
+				node.setAttribute("title", "点击切换");
 
-				if (type === "link") {
-					nodeParent.removeAttribute("title");
-					node.setAttribute("title", "跳转链接");
-
-					node.addEventListener("click", e => {
+				const item = DOC.create(type, { src, id, class: "x-contain" });
+				if (type === "video") {
+					item.controls = true;
+					item.currentTime = 3;
+					item.muted = true;
+					item.preload = "metadata";
+					item.addEventListener("click", e => {
 						e.preventDefault();
 						e.stopPropagation();
-						openInTab(src);
+						const { target: video } = e;
+						video.paused ? video.play() : video.pause();
 					});
-				} else {
-					node.setAttribute("title", "点击切换");
-					nodeParent.setAttribute("title", "点击放大");
-
-					const item = DOC.create(type, { src, id, class: "x-contain" });
-
-					if (type === "video") {
-						nodeParent.setAttribute("title", "切换静音");
-
-						item.controls = true;
-						item.currentTime = 3;
-						item.muted = true;
-						item.preload = "metadata";
-						item.addEventListener("click", e => {
-							e.preventDefault();
-							e.stopPropagation();
-							const { target: video } = e;
-							video.paused ? video.play() : video.pause();
-						});
-					}
-
-					DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 				}
+				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
 			async _movieTitle() {
 				const start = () => {
