@@ -317,13 +317,13 @@
 			r18 = r18?.querySelector("a.js-view-sample");
 
 			return (
-				r18?.getAttribute("data-video-high") ||
-				r18?.getAttribute("data-video-med") ||
-				r18?.getAttribute("data-video-low") ||
 				xrmoo
 					?.querySelector(".card .card-footer a.viewVideo")
 					?.getAttribute("data-link")
 					.replace("_sm_w", "_dmb_w") ||
+				r18?.getAttribute("data-video-high") ||
+				r18?.getAttribute("data-video-med") ||
+				r18?.getAttribute("data-video-low") ||
 				""
 			);
 		}
@@ -1384,7 +1384,7 @@
 			if (!this.M_VIDEO) return;
 
 			start && start();
-			await GM_addElement(DOC.head, "meta", { name: "referrer", content: "same-origin" });
+			GM_addElement(DOC.head, "meta", { name: "referrer", content: "same-origin" });
 			let video = Store.getDetail(code)?.video;
 			if (!video) {
 				video = await Apis.movieVideo(code, studio);
