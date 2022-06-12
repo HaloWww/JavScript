@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.2.6
+// @version         3.2.7
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -257,34 +257,37 @@
 		// movie
 		static async movieImg(code) {
 			code = code.toUpperCase();
+			const { regex } = codeParse(code);
 
-			const [blogJav, javStore] = await Promise.all([
+			let [blogJav, javStore] = await Promise.all([
 				request(`https://www.google.com/search?q=${code} site:blogjav.net`),
 				request(`https://javstore.net/search/${code}.html`),
 			]);
+			blogJav = Array.from(blogJav?.querySelectorAll("#rso .g .yuRUbf a") ?? []).find(item => {
+				return regex.test(item?.querySelector("h3")?.textContent ?? "");
+			});
+			javStore = Array.from(javStore?.querySelectorAll("#content_news li a") ?? []).find(item => {
+				return regex.test(item?.title ?? "");
+			});
 
 			const [bjRes, jsRes] = await Promise.all([
-				request(
-					`http://webcache.googleusercontent.com/search?q=cache:${
-						blogJav?.querySelector("#rso .g .yuRUbf a")?.href
-					}`
-				),
-				request(javStore?.querySelector("#content_news li a")?.href),
+				request(`http://webcache.googleusercontent.com/search?q=cache:${blogJav?.href}`),
+				request(javStore?.href),
 			]);
+			const bjImg = bjRes
+				? bjRes
+						?.querySelector("#page .entry-content a img")
+						?.getAttribute("data-lazy-src")
+						.replace("//t", "//img")
+						.replace("thumbs", "images")
+				: "";
+			const jsImg = jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "");
 
-			let bjImg = "";
-			if (bjRes) {
-				bjImg = bjRes
-					?.querySelector("#page .entry-content a img")
-					?.getAttribute("data-lazy-src")
-					.replace("//t", "//img")
-					.replace("thumbs", "images");
-			}
-
-			return bjImg || jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") || "";
+			return bjImg || jsImg || "";
 		}
 		static async movieVideo(code, studio) {
 			code = code.toLowerCase();
+			const { regex } = codeParse(code);
 
 			if (studio) {
 				const matchList = [
@@ -314,14 +317,17 @@
 				request(`https://www.r18.com/common/search/order=match/searchword=${code}/`),
 				request(`http://dmm.xrmoo.com/sindex.php?searchstr=${code}`),
 			]);
+			r18 = Array.from(r18?.querySelectorAll("a.js-view-sample") ?? []).find(item => {
+				return regex.test(item?.dataset?.id ?? "");
+			});
 
-			r18 = r18?.querySelector("a.js-view-sample");
-			r18 =
-				r18?.getAttribute("data-video-high") ||
-				r18?.getAttribute("data-video-med") ||
-				r18?.getAttribute("data-video-low");
-			r18 = r18 ? r18.replace("awscc3001.r18.com", "cc3001.dmm.co.jp") : "";
-
+			if (r18) {
+				const { dataset } = r18;
+				r18 = dataset?.videoHigh || dataset?.videoMed || dataset?.videoLow || "";
+				r18 = r18.replace("awscc3001.r18.com", "cc3001.dmm.co.jp");
+			} else {
+				r18 = "";
+			}
 			xrmoo = xrmoo
 				?.querySelector(".card .card-footer a.viewVideo")
 				?.getAttribute("data-link")
@@ -331,9 +337,13 @@
 		}
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
+			const { regex } = codeParse(code);
 
 			let netflav = await request(`https://netflav.com/search?type=title&keyword=${code}`);
-			netflav = netflav?.querySelector(".grid_root .grid_cell a")?.getAttribute("href");
+			netflav = Array.from(netflav?.querySelectorAll(".grid_root .grid_cell") ?? []).find(item => {
+				return regex.test(item?.querySelector(".grid_title")?.textContent ?? "");
+			});
+			netflav = netflav?.querySelector("a")?.getAttribute("href");
 			if (!netflav) return;
 
 			netflav = await request(`https://netflav.com${netflav}`);
@@ -361,13 +371,16 @@
 		}
 		static async movieStar(code) {
 			code = code.toUpperCase();
+			const { regex } = codeParse(code);
+
 			const site = "https://javdb.com";
-
 			let res = await request(`${site}/search?q=${code}&sb=0`);
-			const href = res?.querySelector(".movie-list .item a")?.getAttribute("href");
-			if (!href) return;
+			res = Array.from(res?.querySelectorAll(".movie-list .item a") ?? []).find(item => {
+				return regex.test(item?.querySelector(".video-title strong")?.textContent ?? "");
+			});
+			if (!res) return;
 
-			res = await request(`${site}${href}`);
+			res = await request(`${site}${res.getAttribute("href")}`);
 			res = res?.querySelectorAll(".movie-panel-info > .panel-block");
 			if (!res?.length) return;
 
