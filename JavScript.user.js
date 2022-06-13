@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.2.7
+// @version         3.2.8
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -320,39 +320,85 @@
 			r18 = Array.from(r18?.querySelectorAll("a.js-view-sample") ?? []).find(item => {
 				return regex.test(item?.dataset?.id ?? "");
 			});
+			xrmoo = xrmoo?.querySelector(".card .card-footer a.viewVideo")?.getAttribute("data-link");
+
+			const type = "video/mp4";
+			let res = [];
 
 			if (r18) {
-				const { dataset } = r18;
-				r18 = dataset?.videoHigh || dataset?.videoMed || dataset?.videoLow || "";
-				r18 = r18.replace("awscc3001.r18.com", "cc3001.dmm.co.jp");
-			} else {
-				r18 = "";
+				const { videoHigh, videoMed, videoLow } = r18.dataset;
+				if (videoHigh) res.push({ src: videoHigh, title: "720p", type });
+				if (videoMed) res.push({ src: videoMed, title: "480p", type });
+				if (videoLow) res.push({ src: videoLow, title: "360p", type });
+				res = res.map(item => {
+					return { ...item, src: item.src.replace("awscc3001.r18.com", "cc3001.dmm.co.jp") };
+				});
 			}
-			xrmoo = xrmoo
-				?.querySelector(".card .card-footer a.viewVideo")
-				?.getAttribute("data-link")
-				.replace("_sm_w", "_dmb_w");
+			if (xrmoo) {
+				res.push({ src: xrmoo.replace("_sm_w", "_dmb_w"), title: "720p", type });
+				res.push({ src: xrmoo.replace("_sm_w", "_dm_w"), title: "480p", type });
+				res.push({ src: xrmoo, title: "360p", type });
+			}
 
-			return r18 || xrmoo || "";
+			if (res.length) return res.sort((cur, next) => parseInt(next.title, 10) - parseInt(cur.title, 10));
 		}
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
 			const { regex } = codeParse(code);
+			const requestHost = "https://netflav.com";
 
-			let netflav = await request(`https://netflav.com/search?type=title&keyword=${code}`);
+			let netflav = await request(`${requestHost}/search?type=title&keyword=${code}`);
 			netflav = Array.from(netflav?.querySelectorAll(".grid_root .grid_cell") ?? []).find(item => {
 				return regex.test(item?.querySelector(".grid_title")?.textContent ?? "");
 			});
 			netflav = netflav?.querySelector("a")?.getAttribute("href");
 			if (!netflav) return;
 
-			netflav = await request(`https://netflav.com${netflav}`);
+			netflav = await request(`${requestHost}${netflav}`);
 			netflav = netflav?.querySelector("script#__NEXT_DATA__")?.textContent;
-			if (!netflav) return;
-
 			netflav = JSON.parse(netflav)?.props?.initialState?.video?.data?.srcs ?? [];
-			netflav = netflav.find(item => item.includes("https://embedgram.com"));
-			if (netflav) return netflav;
+			if (!netflav?.length) return;
+
+			const matchList = [
+				{
+					regex: /\/\/(mm9842\.com|www\.avple\.video|asianclub\.tv)/,
+					parse: async url => {
+						const [protocol, href] = url.split("//");
+						const [host, ...pathname] = href.split("/");
+
+						const res = await request(
+							`${protocol}//${host}/api/source/${pathname.pop()}`,
+							{ r: "", d: host },
+							"POST"
+						);
+
+						return (res?.data ?? []).map(({ file, label, type }) => {
+							return { src: file, title: label, type: `video/${type}` };
+						});
+					},
+				},
+				{
+					regex: /\/\/(embedgram\.com|vidoza\.net)/,
+					parse: async url => {
+						const res = await request(url);
+
+						return Array.from(res?.querySelectorAll("video source") ?? []).map(
+							({ src, title = "", type }) => {
+								return { src, title, type };
+							}
+						);
+					},
+				},
+			];
+			netflav = await Promise.all(
+				netflav
+					.filter(url => matchList.find(({ regex }) => regex.test(url)))
+					.map(url => matchList.find(({ regex }) => regex.test(url)).parse(url))
+			);
+			if (!netflav?.length) return;
+
+			netflav = netflav.reduce((pre, cur) => [...pre, ...cur], []);
+			return netflav.sort((cur, next) => parseInt(next.title || 360, 10) - parseInt(cur.title || 360, 10));
 		}
 		static async movieTitle(sentence) {
 			const st = encodeURIComponent(sentence.trim());
@@ -2228,7 +2274,7 @@
 				this.initSwitch();
 				this.updateSwitch({ key: "img", title: "大图" });
 				this.updateSwitch({ key: "video", title: "预览" });
-				this.updateSwitch({ key: "player", title: "视频", type: "iframe" });
+				this.updateSwitch({ key: "player", title: "视频", type: "video" });
 
 				this._movieTitle();
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
@@ -2340,8 +2386,17 @@
 				node.removeAttribute("disabled");
 				node.setAttribute("title", "点击切换");
 
-				const item = DOC.create(type, { src, id, class: "x-contain" });
+				const item = DOC.create(type, { id, class: "x-contain" });
+				if (typeof src === "string") item.src = src;
+
 				if (type === "video") {
+					if (Object.prototype.toString.call(src) === "[object Array]") {
+						src.forEach(params => {
+							const source = DOC.create("source", params);
+							item.appendChild(source);
+						});
+					}
+
 					item.controls = true;
 					item.currentTime = 3;
 					item.muted = true;
@@ -2353,6 +2408,7 @@
 						video.paused ? video.play() : video.pause();
 					});
 				}
+
 				DOC.querySelector(".bigImage").insertAdjacentElement("beforeend", item);
 			},
 			async _movieTitle() {
