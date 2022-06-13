@@ -372,6 +372,7 @@
 							"POST"
 						);
 
+						if (!res?.success) return [];
 						return (res?.data ?? []).map(({ file, label, type }) => {
 							return { src: file, title: label, type: `video/${type}` };
 						});
@@ -381,7 +382,6 @@
 					regex: /\/\/(embedgram\.com|vidoza\.net)/,
 					parse: async url => {
 						const res = await request(url);
-
 						return Array.from(res?.querySelectorAll("video source") ?? []).map(
 							({ src, title = "", type }) => {
 								return { src, title, type };
@@ -395,9 +395,9 @@
 					.filter(url => matchList.find(({ regex }) => regex.test(url)))
 					.map(url => matchList.find(({ regex }) => regex.test(url)).parse(url))
 			);
+			netflav = netflav.reduce((pre, cur) => [...pre, ...cur], []);
 			if (!netflav?.length) return;
 
-			netflav = netflav.reduce((pre, cur) => [...pre, ...cur], []);
 			return netflav.sort((cur, next) => parseInt(next.title || 360, 10) - parseInt(cur.title || 360, 10));
 		}
 		static async movieTitle(sentence) {
