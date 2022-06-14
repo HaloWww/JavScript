@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.2.8
+// @version         3.3.0
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -1962,9 +1962,7 @@
 			},
 			async _driveMatch(node = DOC) {
 				const items = node.querySelectorAll(".movie-box");
-				for (const item of items) {
-					await this.updateMatchStatus(item);
-				}
+				for (const item of items) await this.updateMatchStatus(item);
 			},
 			async updateMatchStatus(node) {
 				const code = node.querySelector("date")?.textContent?.trim();
@@ -2645,9 +2643,11 @@
 		}
 
 		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M", "D"];
+		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
+			others: /.*/i,
 		};
 
 		// styles
@@ -2659,8 +2659,11 @@
         body {
             padding-top: 3.25rem;
         }
+        .section {
+            padding: 0;
+        }
         section.section {
-		    padding: 20px 20px 0;
+		    padding: 20px;
 		}
         #search-type,
         #video-search {
@@ -2702,8 +2705,12 @@
 		list = {
 			docStart() {
 				const style = `
+                section.section {
+                    padding-bottom: 0;
+                }
                 @media (max-width: 575.98px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
                     .movie-list.h {
@@ -2711,7 +2718,8 @@
                     }
                 }
                 @media (min-width: 576px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(3, minmax(0, 1fr));
                     }
                     .movie-list.h {
@@ -2719,7 +2727,8 @@
                     }
                 }
                 @media (min-width: 768px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(4, minmax(0, 1fr));
                     }
                     .movie-list.h {
@@ -2727,7 +2736,8 @@
                     }
                 }
                 @media (min-width: 992px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(5, minmax(0, 1fr));
                     }
                     .movie-list.h {
@@ -2735,7 +2745,8 @@
                     }
                 }
                 @media (min-width: 1200px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(6, minmax(0, 1fr));
                     }
                     .movie-list.h {
@@ -2743,17 +2754,21 @@
                     }
                 }
                 @media (min-width: 1400px) {
-                    .movie-list.v {
+                    .movie-list.v,
+                    .actors {
                         grid-template-columns: repeat(7, minmax(0, 1fr));
                     }
                     .movie-list.h {
                         grid-template-columns: repeat(5, minmax(0, 1fr));
                     }
                 }
-                .movie-list {
-                    padding: 0 0 20px 0;
-                    gap: 20px;
+                .movie-list,
+                .actors,
+                .section-container {
                     display: none;
+                    padding: 0 0 20px;
+                    margin: 0 !important;
+                    gap: 20px;
                 }
                 .movie-list .box {
                     padding: 0 0 10px;
@@ -2773,8 +2788,10 @@
                 }
                 .movie-list .item .cover:hover img {
                     transform: none;
+                    z-index: 0;
                 }
                 .movie-list .item .video-title {
+                    font-size: 14px;
                     padding: 0;
                     margin: 10px 10px 0;
                     line-height: var(--x-line-h);
@@ -2793,6 +2810,15 @@
                 .movie-list .box .tags .tag {
                     margin-bottom: 8px;
                 }
+                .actors .box {
+                    font-size: 14px;
+                    margin-bottom: 0;
+                    padding-bottom: 10px;
+                }
+                .actor-box a strong {
+                    padding: 10px 10px 0;
+                    line-height: unset;
+                }
                 nav.pagination {
                     display: none;
                     margin: 0 -4px !important;
@@ -2807,33 +2833,35 @@
 			},
 			contentLoaded() {
 				this._globalSearch();
-				this.globalClick([".movie-list .item a", "#actors.actors .box.actor-box a"]);
+				this.globalClick([".movie-list .box", ".actors .box a", ".section-container .box"], "", url => {
+					url = url.replace(location.origin, "");
+					const node = DOC.querySelector(`.movie-list .box[href="${url}"]`);
+					if (node) this.updateMatchStatus(node);
+				});
 
-				if (location.pathname === "/rankings/fanza_award") return GM_addStyle(`.movie-list { display: grid; }`);
-				this.modifyLayout(".movie-list");
+				const selectors = [".movie-list", ".actors", ".section-container"];
+				if (DOC.querySelectorAll(selectors).length === 1) {
+					return selectors.forEach(item => this.modifyLayout(item));
+				}
+				GM_addStyle(`
+                .movie-list, .actors, .section-container { display: grid; }
+                nav.pagination { display: flex; }
+                `);
 			},
 			load() {
 				this.changeScrollBarColor();
 			},
 			modifyLayout(selectors) {
-				const waterfall = DOC.querySelector(selectors);
-				const pagination = DOC.querySelector(".pagination");
-				if (!waterfall) {
-					if (pagination) pagination.style.cssText += "display:flex";
-					return;
-				}
+				const container = DOC.querySelector(selectors);
+				if (!container) return;
 
-				const _waterfall = waterfall.cloneNode(true);
-				this.modifyItem(_waterfall, selectors);
+				const _container = container.cloneNode(true);
+				this.modifyItem(_container, selectors);
+				container.parentElement.replaceChild(_container, container);
+				_container.style.cssText += "display:grid";
 
-				waterfall.parentElement.replaceChild(_waterfall, waterfall);
-				_waterfall.style.cssText += "display:grid";
-
-				const infScroll = this.listScroll(_waterfall, "", ".pagination-next");
-				if (!infScroll) {
-					if (pagination) pagination.style.cssText += "display:flex";
-					return;
-				}
+				const infScroll = this.listScroll(_container, "", ".pagination-next");
+				if (!infScroll) return GM_addStyle(`nav.pagination { display: flex; }`);
 
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
@@ -2851,6 +2879,7 @@
 						items.push(_item);
 					}
 				});
+				this._driveMatch(container);
 				return items;
 			},
 			modifyMovieBox(node = DOC) {
@@ -2862,9 +2891,37 @@
 					title.classList.add("x-title");
 				}
 			},
+			async _driveMatch(node = DOC) {
+				const items = node.querySelectorAll(".movie-list .box");
+				for (const item of items) await this.updateMatchStatus(item);
+			},
+			async updateMatchStatus(node) {
+				const code = node.querySelector(".video-title strong")?.textContent?.trim();
+				if (!code) return;
+
+				const res = await this.driveMatch({ code, res: "list" });
+				if (!res?.length) return;
+
+				const frame = node.querySelector(".cover");
+				frame.classList.add("x-player");
+				frame.setAttribute("title", "点击播放");
+				frame.setAttribute("data-code", res[0].pc);
+				node.querySelector(".x-title").classList.add("x-matched");
+			},
 		};
 		movie = {
 			docStart() {},
+			contentLoaded() {
+				this._globalSearch();
+			},
+			load() {
+				this.changeScrollBarColor();
+			},
+		};
+		others = {
+			docStart() {
+				this.globalDark(`${this.variables}${this.style}${this._style}`);
+			},
 			contentLoaded() {
 				this._globalSearch();
 			},
