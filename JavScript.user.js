@@ -81,7 +81,7 @@
 			params.responseType = params.responseType ?? "document";
 			if (data) {
 				if (url.includes("?")) {
-					url = `${url}${url.charAt(url.length - 1) === "&" ? "" : "&"}${data}`;
+					url = `${url}${url.endsWith("&") ? "" : "&"}${data}`;
 				} else {
 					url = `${url}?${data}`;
 				}
@@ -92,6 +92,9 @@
 			const headers = params.headers ?? {};
 			params.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", ...headers };
 		}
+
+		// const headers = params.headers ?? {};
+		// params.headers = { Referer: "", "Cache-Control": "no-cache", ...headers };
 
 		return new Promise(resolve => {
 			GM_xmlhttpRequest({
@@ -119,56 +122,57 @@
 	};
 
 	// utils
-	const getDate = timestamp => {
+	const getDate = (timestamp, separator = "-") => {
 		const date = timestamp ? new Date(timestamp) : new Date();
 		const Y = date.getFullYear();
 		const M = `${date.getMonth() + 1}`.padStart(2, "0");
 		const D = `${date.getDate()}`.padStart(2, "0");
-		return `${Y}-${M}-${D}`;
+		return `${Y}${separator}${M}${separator}${D}`;
 	};
 	const addCopyTarget = (selectors, attr = {}) => {
 		const node = DOC.querySelector(selectors);
-		const _attr = { "data-copy": node.textContent.trim(), class: "x-ml", href: "javascript:void(0);" };
+		const _attr = { "data-copy": node?.textContent?.trim() ?? "", class: "x-ml", href: "javascript:void(0);" };
 		const target = DOC.create("a", { ..._attr, ...attr }, "复制");
 		target.addEventListener("click", handleCopyTxt);
 		node.appendChild(target);
 	};
-	const handleCopyTxt = (e, text) => {
-		if (!e?.target?.dataset?.copy?.trim()) return;
+	const handleCopyTxt = (e, tip = "成功") => {
+		const { target } = e;
+		const copy = target?.dataset?.copy?.trim() ?? "";
+		if (!copy) return;
 
 		e.preventDefault();
 		e.stopPropagation();
 
-		const { target } = e;
-		GM_setClipboard(target.dataset.copy.trim());
-		const originText = target.textContent ?? "";
-		target.textContent = text ?? "成功";
+		GM_setClipboard(copy);
+		const { textContent = "" } = target;
+		target.textContent = tip;
 
 		const timer = setTimeout(() => {
-			target.textContent = originText;
+			target.textContent = textContent;
 			clearTimeout(timer);
 		}, 400);
 
 		return 1;
 	};
 	const transToBytes = sizeStr => {
-		const sizer = [
+		const sizeNum = sizeStr.replace(/[a-zA-Z\s]/g, "");
+		if (sizeNum <= 0) return 0;
+
+		const matchList = [
 			{ unit: /byte/gi, transform: size => size },
-			{ unit: /kb/gi, transform: size => size * Math.pow(1000, 1) },
+			{ unit: /kb/gi, transform: size => size * 1000 },
 			{ unit: /mb/gi, transform: size => size * Math.pow(1000, 2) },
 			{ unit: /gb/gi, transform: size => size * Math.pow(1000, 3) },
-			{ unit: /kib/gi, transform: size => size * Math.pow(1024, 1) },
+			{ unit: /kib/gi, transform: size => size * 1024 },
 			{ unit: /mib/gi, transform: size => size * Math.pow(1024, 2) },
 			{ unit: /gib/gi, transform: size => size * Math.pow(1024, 3) },
 		];
 
-		const size = sizeStr.replace(/[a-zA-Z\s]/g, "");
-		if (size <= 0) return 0;
-
 		return (
-			sizer
+			matchList
 				.find(({ unit }) => unit.test(sizeStr))
-				?.transform(size)
+				?.transform(sizeNum)
 				?.toFixed(2) ?? 0
 		);
 	};
@@ -236,17 +240,18 @@
 			const details = GM_getValue("DETAILS", {});
 			return details[key] ?? {};
 		}
-		static upDetail(key, val) {
+		static upDetail(key, val = {}) {
 			const details = GM_getValue("DETAILS", {});
-			details[key] = { ...this.getDetail(key), ...val };
+			details[key] = { ...(details[key] ?? {}), ...val };
 			GM_setValue("DETAILS", details);
 		}
 		static addTemporaryOb(val) {
+			if (val) return;
 			const obs = GM_getValue("TEMPORARY_OBS", []);
-			if (val) obs.push(val);
-			GM_setValue("TEMPORARY_OBS", obs);
+			GM_setValue("TEMPORARY_OBS", obs.push(val));
 		}
 		static reduceTemporaryOb(val) {
+			if (val) return;
 			const obs = GM_getValue("TEMPORARY_OBS", []).filter(item => item !== val);
 			GM_setValue("TEMPORARY_OBS", obs);
 		}
@@ -281,7 +286,7 @@
 						.replace("//t", "//img")
 						.replace("thumbs", "images")
 				: "";
-			const jsImg = jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "");
+			const jsImg = jsRes ? jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") : "";
 
 			return bjImg || jsImg || "";
 		}
@@ -345,17 +350,17 @@
 		static async moviePlayer(code) {
 			code = code.toUpperCase();
 			const { regex } = codeParse(code);
-			const requestHost = "https://netflav.com";
+			const site = "https://netflav.com";
 
-			let netflav = await request(`${requestHost}/search?type=title&keyword=${code}`);
+			let netflav = await request(`${site}/search?type=title&keyword=${code}`);
 			netflav = Array.from(netflav?.querySelectorAll(".grid_root .grid_cell") ?? []).find(item => {
 				return regex.test(item?.querySelector(".grid_title")?.textContent ?? "");
 			});
 			netflav = netflav?.querySelector("a")?.getAttribute("href");
 			if (!netflav) return;
 
-			netflav = await request(`${requestHost}${netflav}`);
-			netflav = netflav?.querySelector("script#__NEXT_DATA__")?.textContent;
+			netflav = await request(`${site}${netflav}`);
+			netflav = netflav?.querySelector("script#__NEXT_DATA__")?.textContent ?? "{}";
 			netflav = JSON.parse(netflav)?.props?.initialState?.video?.data?.srcs ?? [];
 			if (!netflav?.length) return;
 
@@ -418,8 +423,8 @@
 		static async movieStar(code) {
 			code = code.toUpperCase();
 			const { regex } = codeParse(code);
-
 			const site = "https://javdb.com";
+
 			let res = await request(`${site}/search?q=${code}&sb=0`);
 			res = Array.from(res?.querySelectorAll(".movie-list .item a") ?? []).find(item => {
 				return regex.test(item?.querySelector(".video-title strong")?.textContent ?? "");
@@ -430,7 +435,12 @@
 			res = res?.querySelectorAll(".movie-panel-info > .panel-block");
 			if (!res?.length) return;
 
-			res = res[res.length - 2]?.querySelector(".value").textContent.trim();
+			res = Array.from(res).find(item => {
+				return /(演員|Actor\(s\)):/.test(item?.querySelector("strong")?.textContent ?? "");
+			});
+			if (!res) return;
+
+			res = res?.querySelector(".value").textContent.trim();
 			return res
 				.split(/\n/)
 				.filter(item => item.indexOf("♀") !== -1)
@@ -466,6 +476,19 @@
 						href: e => e?.querySelector("a").getAttribute("href"),
 					},
 				},
+				// {
+				// 	site: "BTDigg",
+				// 	host: "https://btdig.com/",
+				// 	search: "search?order=0&q=%s",
+				// 	selectors: ".one_result",
+				// 	filter: {
+				// 		name: e => e?.querySelector(".torrent_name").textContent,
+				// 		link: e => e?.querySelector(".torrent_magnet a").href,
+				// 		size: e => e?.querySelector(".torrent_size").textContent,
+				// 		date: e => e?.querySelector(".torrent_age").textContent,
+				// 		href: e => e?.querySelector(".torrent_name a").href,
+				// 	},
+				// },
 			];
 
 			const matched = await Promise.all(
@@ -645,7 +668,7 @@
 					name: "点击事件",
 					key: "G_CLICK",
 					type: "switch",
-					info: "影片/演员卡片以新窗口打开，左击前台，右击后台",
+					info: "影片/演员 卡片新窗口打开，左键前台，右键后台",
 					defaultVal: true,
 					hotkey: "c",
 				},
@@ -675,7 +698,7 @@
 					name: "滚动加载",
 					key: "L_SCROLL",
 					type: "switch",
-					info: "滚动自动加载下一页",
+					info: "滚动加载更多",
 					defaultVal: true,
 				},
 				{
@@ -717,7 +740,7 @@
 					name: "字幕筛选",
 					key: "M_SUB",
 					type: "switch",
-					info: "额外针对名称为 <code>大写字母</code> + <code>-C</code> 资源判断",
+					info: "针对名称规则为 <code>大写字母</code> + <code>-C</code> 的磁链的额外过滤",
 					defaultVal: false,
 				},
 				{
@@ -738,22 +761,22 @@
 					name: "网盘资源",
 					key: "D_MATCH",
 					type: "switch",
-					info: "资源匹配 & 离线开关 (<strong>确保已登录网盘</strong>)",
+					info: "资源匹配 & 离线开关 (<strong>请确保网盘已登录</strong>)",
 					defaultVal: true,
 				},
 				{
 					name: "下载目录",
 					key: "D_CID",
 					type: "input",
-					info: "离线下载自定目录 <strong>cid</strong> 或 <strong>动态参数</strong>，建议 <strong>cid</strong> 效率更高<br><strong>动态参数</strong> 支持网盘 <strong>根目录</strong> 下文件夹名称<br>默认动态参数 <code>${云下载}</code>",
+					info: "设置离线下载目录 <strong>cid</strong> 或 <strong>动态参数</strong>，建议 <strong>cid</strong> 效率更高<br><strong>动态参数</strong> 支持网盘 <strong>根目录</strong> 下文件夹名称<br>默认动态参数 <code>${云下载}</code>",
 					placeholder: "cid 或 动态参数",
 					defaultVal: "${云下载}",
 				},
 				{
-					name: "文件验证",
+					name: "离线验证",
 					key: "D_VERIFY",
 					type: "number",
-					info: "『<strong>一键离线</strong>』可用，查询以验证离线下载结果，每次间隔一秒<br>设置次数上限，次数越多验证越精准<br>建议 3 ~ 5，默认 3",
+					info: "『<strong>一键离线</strong>』后执行，查询以验证离线下载结果，每次间隔一秒<br>设置验证次数上限，次数越多验证越精准<br>建议 3 ~ 5，默认 3",
 					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 3,
 				},
@@ -761,7 +784,7 @@
 					name: "文件重命名",
 					key: "D_RENAME",
 					type: "input",
-					info: '需要『<strong>文件验证</strong>』&『<strong>一键离线</strong>』可用，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写；番号为必须值，如新命名未包含将自动追加前缀<br><code>${标题}</code> 页面标题，标题可能已包含番号，自行判断<br><code>${序号}</code> 仅作用于资源文件，数字 1 起',
+					info: '『<strong>一键离线</strong>』&『<strong>离线验证</strong>』后执行，支持动态参数如下<br><code>${字幕}</code> "【中文字幕】"，非字幕资源则为空<br><code>${番号}</code> 页面番号，字母自动转大写 (番号为必须值，如重命名未包含将自动追加前缀)<br><code>${标题}</code> 页面标题，标题可能已包含番号，需自行判断<br><code>${序号}</code> 仅作用于视频文件，数字 1 起',
 					placeholder: "勿填写后缀，可能导致资源不可用",
 					defaultVal: "${字幕}${番号} - ${标题}",
 				},
@@ -811,7 +834,7 @@
 
 			let { tabs, commands, details } = this.menus;
 
-			const exclude = this.excludeMenu;
+			const exclude = this.excludeMenu ?? [];
 			if (exclude?.length) {
 				const regex = new RegExp(`^(?!${exclude.join("|")})`);
 				commands = commands.filter(command => regex.test(command));
@@ -819,7 +842,7 @@
 			}
 			if (!commands.length) return;
 
-			const domain = Matched.domain;
+			const { domain } = Matched;
 			const active = tabs.find(({ key }) => key === this.route) ?? tabs[0];
 
 			let tabStr = "";
@@ -836,11 +859,11 @@
                     <a
                         class="nav-link${isActive ? " active" : ""}"
                         id="${key}-tab"
-                        aria-controls="${key}"
-                        aria-selected="${isActive}"
                         data-bs-toggle="pill"
                         href="#${key}"
                         role="tab"
+                        aria-controls="${key}"
+                        aria-selected="${isActive}"
                     >
                         ${title}设置
                     </a>`;
@@ -848,8 +871,8 @@
                     <div
                         class="tab-pane fade${isActive ? " show active" : ""}"
                         id="${key}"
-                        aria-labelledby="${key}-tab"
                         role="tabpanel"
+                        aria-labelledby="${key}-tab"
                     >
                     `;
 
@@ -917,157 +940,159 @@
 			}
 
 			if (!tabStr || !panelStr) return;
-			DOC.addEventListener("DOMContentLoaded", () => {
-				DOC.body.insertAdjacentHTML(
-					"beforeend",
-					`<iframe
-                        class="x-mask"
-                        id="control-panel"
-                        name="control-panel"
-                        src="about:blank"
-                        title="控制面板"
-                    ></iframe>`
-				);
-				const iframe = DOC.querySelector("iframe#control-panel");
-				const _DOC = iframe.contentWindow.document;
+			DOC.addEventListener(
+				"DOMContentLoaded",
+				() => {
+					DOC.body.insertAdjacentHTML(
+						"beforeend",
+						`<iframe
+                            class="x-mask"
+                            id="control-panel"
+                            name="control-panel"
+                            src="about:blank"
+                            title="控制面板"
+                        ></iframe>`
+					);
+					const iframe = DOC.querySelector("iframe#control-panel");
+					const _DOC = iframe.contentWindow.document;
 
-				_DOC.querySelector("head").insertAdjacentHTML(
-					"beforeend",
-					`<link
-                        href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
-                        rel="stylesheet"
-                    >
-                    <style>${this.style}</style>
-                    <base target="_blank">`
-				);
-				const body = _DOC.querySelector("body");
-				body.classList.add("bg-transparent");
-				GM_addElement(body, "script", {
-					src: "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js",
-				});
-				body.insertAdjacentHTML(
-					"afterbegin",
-					`
-                    <button
-                        type="button"
-                        class="d-none"
-                        id="openModal"
-                        class="btn btn-primary"
-                        data-bs-toggle="modal"
-                        data-bs-target="#controlPanel"
-                    >
-                        open
-                    </button>
-                    <div
-                        class="modal fade"
-                        id="controlPanel"
-                        tabindex="-1"
-                        aria-labelledby="controlPanelLabel"
-                        aria-hidden="true"
-                    >
-                        <div class="modal-dialog modal-lg modal-fullscreen-lg-down modal-dialog-scrollable">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="controlPanelLabel">
-                                        控制面板
-                                        -
-                                        <a
-                                            href="https://sleazyfork.org/zh-CN/scripts/435360-javscript"
-                                            class="link-secondary text-decoration-none"
-                                            target="_blank"
-                                        >
-                                            ${GM_info.script.name} v${GM_info.script.version}
-                                        </a>
-                                    </h5>
-                                    <button
-                                        type="button"
-                                        class="btn-close"
-                                        data-bs-dismiss="modal"
-                                        aria-label="Close"
-                                    >
-                                    </button>
-                                </div>
-                                <div class="modal-body">
-                                    <form class="mb-0">
-                                        <div class="d-flex align-items-start">
-                                            <div
-                                                class="nav flex-column nav-pills me-3 sticky-top"
-                                                id="v-pills-tab"
-                                                role="tablist"
-                                                aria-orientation="vertical"
+					_DOC.querySelector("head").insertAdjacentHTML(
+						"beforeend",
+						`<link
+                            href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+                            rel="stylesheet"
+                        >
+                        <style>${this.style}</style>
+                        <base target="_blank">`
+					);
+					const body = _DOC.querySelector("body");
+					body.classList.add("bg-transparent");
+					GM_addElement(body, "script", {
+						src: "https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js",
+					});
+					body.insertAdjacentHTML(
+						"afterbegin",
+						`<button
+                            type="button"
+                            class="d-none"
+                            id="openModal"
+                            class="btn btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#controlPanel"
+                        >
+                            open
+                        </button>
+                        <div
+                            class="modal fade"
+                            id="controlPanel"
+                            tabindex="-1"
+                            aria-labelledby="controlPanelLabel"
+                            aria-hidden="true"
+                        >
+                            <div class="modal-dialog modal-lg modal-fullscreen-lg-down modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="controlPanelLabel">
+                                            控制面板
+                                            -
+                                            <a
+                                                href="https://sleazyfork.org/zh-CN/scripts/435360-javscript"
+                                                class="link-secondary text-decoration-none"
                                             >
-                                                ${tabStr}
+                                                ${GM_info.script.name} v${GM_info.script.version}
+                                            </a>
+                                        </h5>
+                                        <button
+                                            type="button"
+                                            class="btn-close"
+                                            data-bs-dismiss="modal"
+                                            aria-label="Close"
+                                        >
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form class="mb-0">
+                                            <div class="d-flex align-items-start">
+                                                <div
+                                                    class="nav flex-column nav-pills me-3 sticky-top"
+                                                    id="v-pills-tab"
+                                                    role="tablist"
+                                                    aria-orientation="vertical"
+                                                >
+                                                    ${tabStr}
+                                                </div>
+                                                <div class="tab-content flex-fill" id="v-pills-tabContent">
+                                                    ${panelStr}
+                                                </div>
                                             </div>
-                                            <div class="tab-content flex-fill" id="v-pills-tabContent">
-                                                ${panelStr}
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-                                <div class="modal-footer">
-                                    <button
-                                        type="button"
-                                        class="btn btn-danger"
-                                        data-bs-dismiss="modal"
-                                        data-action="restart"
-                                    >
-                                        重置脚本
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-secondary"
-                                        data-bs-dismiss="modal"
-                                        data-action="reset"
-                                    >
-                                        恢复所有默认
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-primary"
-                                        data-bs-dismiss="modal"
-                                        data-action="save"
-                                    >
-                                        保存设置
-                                    </button>
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button
+                                            type="button"
+                                            class="btn btn-danger"
+                                            data-bs-dismiss="modal"
+                                            data-action="restart"
+                                        >
+                                            重置脚本
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary"
+                                            data-bs-dismiss="modal"
+                                            data-action="reset"
+                                        >
+                                            恢复所有默认
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="btn btn-primary"
+                                            data-bs-dismiss="modal"
+                                            data-action="save"
+                                        >
+                                            保存设置
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    `
-				);
-				body.querySelector(".modal-footer").addEventListener("click", e => {
-					const { action } = e.target.dataset;
-					if (!action) return;
+                        </div>`
+					);
 
-					e.preventDefault();
-					e.stopPropagation();
+					body.querySelector(".modal-footer").addEventListener("click", e => {
+						const { action } = e.target.dataset;
+						if (!action) return;
 
-					if (action === "save") {
-						const data = Object.fromEntries(new FormData(body.querySelector("form")).entries());
-						commands.forEach(key => GM_setValue(`${domain}_${key}`, data[key] ?? ""));
-					}
-					if (action === "reset") {
-						GM_listValues().forEach(name => name.startsWith(domain) && GM_deleteValue(name));
-					}
-					if (action === "restart") {
-						GM_listValues().forEach(name => GM_deleteValue(name));
-					}
+						e.preventDefault();
+						e.stopPropagation();
 
-					location.reload();
-				});
+						if (action === "save") {
+							const data = Object.fromEntries(new FormData(body.querySelector("form")).entries());
+							commands.forEach(key => GM_setValue(`${domain}_${key}`, data[key] ?? ""));
+						}
+						if (action === "reset") {
+							GM_listValues().forEach(name => name.startsWith(domain) && GM_deleteValue(name));
+						}
+						if (action === "restart") {
+							GM_listValues().forEach(name => GM_deleteValue(name));
+						}
 
-				const toggleIframe = () => {
-					DOC.body.parentNode.classList.toggle("x-scrollbar-hide");
-					iframe.classList.toggle("x-show");
-				};
-				const openModal = () => {
-					if (iframe.classList.contains("x-show")) return;
-					toggleIframe();
-					_DOC.querySelector("#openModal").click();
-				};
-				GM_registerMenuCommand("控制面板", openModal, "s");
-				_DOC.querySelector("#controlPanel").addEventListener("hidden.bs.modal", toggleIframe);
-			});
+						location.reload();
+					});
+
+					const toggleIframe = () => {
+						DOC.body.parentNode.classList.toggle("x-scrollbar-hide");
+						iframe.classList.toggle("x-show");
+					};
+					const openModal = () => {
+						if (iframe.classList.contains("x-show")) return;
+						toggleIframe();
+						_DOC.querySelector("#openModal").click();
+					};
+					GM_registerMenuCommand("控制面板", openModal, "s");
+					_DOC.querySelector("#controlPanel").addEventListener("hidden.bs.modal", toggleIframe);
+				},
+				{ once: true }
+			);
 		}
 
 		// styles
@@ -1082,18 +1107,16 @@
             --x-orange: #ff9f0a;
             --x-green: #30d158;
             --x-red: #ff453a;
-
+            /* title line height */
             --x-line-h: 22px;
-
+            /* thumb/cover width */
             --x-thumb-w: 190px;
             --x-cover-w: 295px;
-
+            /* ratios */
             --x-thumb-ratio: 334 / 473;
             --x-cover-ratio: 135 / 91;
             --x-avatar-ratio: 1;
             --x-sprite-ratio: 4 / 3;
-
-            --x-shadow: 0 1px 3px rgb(0 0 0 / 30%);
         }
         `;
 		style = `
@@ -1384,9 +1407,9 @@
 
 			start && start();
 			let img = Store.getDetail(code)?.img;
-			if (!img) {
+			if (!img?.length) {
 				img = await Apis.movieImg(code);
-				if (img) Store.upDetail(code, { img });
+				if (img?.length) Store.upDetail(code, { img });
 			}
 			return img;
 		};
@@ -1396,9 +1419,9 @@
 
 			start && start();
 			let video = Store.getDetail(code)?.video;
-			if (!video) {
+			if (!video?.length) {
 				video = await Apis.movieVideo(code, studio);
-				if (video) Store.upDetail(code, { video });
+				if (video?.length) Store.upDetail(code, { video });
 			}
 			return video;
 		};
@@ -1408,9 +1431,9 @@
 
 			start && start();
 			let player = Store.getDetail(code)?.player;
-			if (!player) {
+			if (!player?.length) {
 				player = await Apis.moviePlayer(code);
-				if (player) Store.upDetail(code, { player });
+				if (player?.length) Store.upDetail(code, { player });
 			}
 			return player;
 		};
@@ -1420,9 +1443,9 @@
 
 			start && start();
 			let transTitle = Store.getDetail(code)?.transTitle;
-			if (!transTitle) {
+			if (!transTitle?.length) {
 				transTitle = await Apis.movieTitle(title);
-				if (transTitle) Store.upDetail(code, { transTitle });
+				if (transTitle?.length) Store.upDetail(code, { transTitle });
 			}
 			return transTitle;
 		};
@@ -1443,7 +1466,7 @@
 			if (!this.M_SUB) return magnets;
 
 			start && start();
-			const regex = /[A-Z]+-\d+-C/;
+			const regex = /[A-Z]+.*-C/;
 			return magnets.map(item => {
 				item.zh = item.zh && !regex.test(item.name);
 				return item;
@@ -2642,8 +2665,8 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M", "D"];
-		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
+		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M", "D"];
+		excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
@@ -2910,9 +2933,135 @@
 			},
 		};
 		movie = {
-			docStart() {},
+			docStart() {
+				const style = `
+                .first-block .copy-to-clipboard,
+                .top-meta,
+                .preview-video-container {
+                    display: none;
+                }
+                img {
+                    vertical-align: middle;
+                    width: 100%;
+                }
+                h2.title {
+                    margin-bottom: 10px !important;
+                }
+                .video-meta-panel {
+                    padding: 0;
+                    margin-bottom: 20px;
+                }
+                .video-meta-panel > .columns {
+                    margin: 0;
+                }
+                .video-meta-panel > .columns > .column {
+                    padding: 10px;
+                }
+                .column-video-cover {
+                    aspect-ratio: var(--x-cover-ratio);
+                }
+                .column-video-cover img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+                .movie-panel-info div.panel-block {
+                    padding: 8px 0;
+                }
+                .review-buttons .panel-block:nth-child(2) {
+                    display: none;
+                }
+                .video-detail > .columns {
+                    margin: 0 0 20px;
+                }
+                .video-detail > .columns > .column {
+                    padding: 0;
+                }
+                .message-body {
+                    padding: 10px;
+                }
+                .video-panel .tile-images {
+                    gap: 10px;
+                }
+                @media (max-width: 575.98px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                }
+                @media (min-width: 576px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(3, minmax(0, 1fr));
+                    }
+                }
+                @media (min-width: 768px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(4, minmax(0, 1fr));
+                    }
+                }
+                @media (min-width: 992px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(5, minmax(0, 1fr));
+                    }
+                }
+                @media (min-width: 1200px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(6, minmax(0, 1fr));
+                    }
+                }
+                @media (min-width: 1400px) {
+                    .video-panel .tile-images {
+                        grid-template-columns: repeat(7, minmax(0, 1fr));
+                    }
+                }
+                .preview-images .tile-item {
+                    aspect-ratio: var(--x-sprite-ratio);
+                }
+                .preview-images .tile-item img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                #magnets > .message {
+                    margin-bottom: 0;
+                }
+                #magnets-content > .columns {
+                    margin: 0;
+                }
+                #magnets-content > .columns > .column {
+                    padding: 10px;
+                    margin: 0;
+                }
+                .review-items .review-item {
+                    padding: 10px 0;
+                }
+                .review-items .review-item:first-child {
+                    padding-top: 0;
+                }
+                .review-items .review-item:last-child {
+                    padding-bottom: 0;
+                }
+                .message-header {
+                    padding: 10px;
+                }
+                .tile-images.tile-small .tile-item {
+                    background-color: #fff;
+                    padding-bottom: 10px;
+                }
+                .tile-images.tile-small .tile-item img {
+                    margin-bottom: 10px;
+                }
+                .tile-images.tile-small .tile-item > div {
+                    padding: 0 10px !important;
+                }
+                `;
+				this.globalDark(`${this.style}${this._style}${style}`);
+			},
 			contentLoaded() {
 				this._globalSearch();
+				this.globalClick([".tile-images.tile-small a.tile-item"]);
+
+				const preview = DOC.querySelector(".preview-images");
+				if (!preview.querySelector(".tile-item")) preview.closest(".columns").remove();
 			},
 			load() {
 				this.changeScrollBarColor();
