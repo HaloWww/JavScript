@@ -1167,6 +1167,12 @@
             text-align: center;
             font-size: 14px !important;
         }
+        .x-ml {
+            margin-left: 10px;
+        }
+        .x-mr {
+            margin-right: 10px;
+        }
         .x-in {
             transition: opacity .25s linear;
             opacity: 1 !important;
@@ -2178,12 +2184,6 @@
                     text-align: left !important;
                     min-height: 32px !important;
                 }
-                .x-ml {
-                    margin-left: 10px;
-                }
-                .x-mr {
-                    margin-right: 10px;
-                }
                 .x-grass-img {
                     object-fit: cover;
                 }
@@ -2806,6 +2806,11 @@
                 .movie-list.h .item .cover {
                     aspect-ratio: var(--x-cover-ratio);
                 }
+                .movie-list .item .cover img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
                 .movie-list .item .cover:hover img {
                     transform: none;
                     z-index: 0;
@@ -2927,6 +2932,9 @@
 			},
 		};
 		movie = {
+			params: {},
+			magnets: null,
+
 			docStart() {
 				const style = `
                 .first-block .copy-to-clipboard,
@@ -2952,7 +2960,12 @@
                     padding: 10px;
                 }
                 .column-video-cover {
+                    position: relative;
+                    overflow: hidden;
                     aspect-ratio: var(--x-cover-ratio);
+                    padding: 0 !important;
+                    margin: 10px;
+                    background-color: #000;
                 }
                 .column-video-cover img {
                     width: 100%;
@@ -3051,7 +3064,7 @@
                     padding: 0 10px !important;
                 }
                 `;
-				this.globalDark(`${this.style}${this._style}${style}`);
+				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}`);
 			},
 			contentLoaded() {
 				this._globalSearch();
@@ -3059,7 +3072,40 @@
 
 				const preview = DOC.querySelector(".preview-images");
 				if (!preview.querySelector(".tile-item")) preview.closest(".columns").remove();
+
+				this.params = this.getParams();
+
+				addCopyTarget("h2.title", { title: "复制标题" });
+				addCopyTarget(".first-block .value", { title: "复制番号" });
+
+				this.initSwitch();
+				this.updateSwitch({ key: "img", title: "大图" });
+				this.updateSwitch({ key: "video", title: "预览" });
+				this.updateSwitch({ key: "player", title: "视频", type: "video" });
+
+				this._movieTitle();
 			},
+			getParams() {
+				const infos = Array.from(DOC.querySelectorAll(".movie-panel-info > .panel-block") ?? []);
+				const findInfos = label => {
+					return (
+						infos
+							.find(info => info.querySelector("strong").textContent === label)
+							?.querySelector(".value")
+							?.textContent?.trim() ?? ""
+					);
+				};
+
+				return {
+					title: DOC.querySelector("h2.title").textContent.trim(),
+					code: DOC.querySelector(".first-block .value").textContent.trim(),
+					date: findInfos("日期:"),
+					studio: findInfos("片商:"),
+				};
+			},
+			initSwitch() {},
+			updateSwitch() {},
+			_movieTitle() {},
 		};
 		others = {
 			docStart() {
