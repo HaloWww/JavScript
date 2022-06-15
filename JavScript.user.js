@@ -1680,7 +1680,6 @@
 			return super.init();
 		}
 
-		excludeMenu = [];
 		routes = {
 			list: /^\/((uncensored|uncensored\/)?(page\/\d+)?$)|((uncensored\/)?((search|searchstar|actresses|genre|star|studio|label|series|director|member)+\/)|actresses(\/\d+)?)+/i,
 			genre: /^\/(uncensored\/)?genre$/i,
@@ -2703,25 +2702,17 @@
         nav.app-desktop-banner {
             display: none !important;
         }
+        [data-theme=dark] ::-webkit-scrollbar-thumb {
+            background: #313131 !important;
+        }
+        [data-theme=dark] img {
+            filter: brightness(.9) contrast(.9);
+        }
         `;
 
 		// methods
 		_globalSearch = () => {
 			this.globalSearch("#video-search", "/search?q=%s");
-		};
-		changeScrollBarColor = () => {
-			if (DOC.documentElement.dataset.theme !== "dark") return;
-			GM_addStyle(`
-            ::-webkit-scrollbar {
-                background: #0a0a0a !important;
-            }
-            ::-webkit-scrollbar-thumb {
-                background: var(--x-grey) !important;
-            }
-            img {
-                filter: brightness(.9) contrast(.9) !important;
-            }
-            `);
 		};
 
 		// modules
@@ -2797,8 +2788,14 @@
                     padding: 0 0 10px;
                 }
                 a.box:focus,
-                a.box:hover {
-                    transition: all .2s ease;
+                a.box:hover,
+                [data-theme=dark] a.box:focus,
+                [data-theme=dark] a.box:hover {
+                    box-shadow: none !important;
+                }
+                :root[data-theme=dark] .box:focus,
+                :root[data-theme=dark] .box:hover {
+                    background-color: #0a0a0a !important;
                 }
                 .movie-list .item .cover {
                     padding: 0 !important;
@@ -2870,9 +2867,6 @@
                 .movie-list, .actors, .section-container { display: grid; }
                 nav.pagination { display: flex; }
                 `);
-			},
-			load() {
-				this.changeScrollBarColor();
 			},
 			modifyLayout(selectors) {
 				const container = DOC.querySelector(selectors);
@@ -3047,6 +3041,9 @@
                     background-color: #fff;
                     padding-bottom: 10px;
                 }
+                [data-theme=dark] .tile-images.tile-small .tile-item {
+                    background-color: #0a0a0a;
+                }
                 .tile-images.tile-small .tile-item img {
                     margin-bottom: 10px;
                 }
@@ -3063,19 +3060,13 @@
 				const preview = DOC.querySelector(".preview-images");
 				if (!preview.querySelector(".tile-item")) preview.closest(".columns").remove();
 			},
-			load() {
-				this.changeScrollBarColor();
-			},
 		};
 		others = {
 			docStart() {
-				this.globalDark(`${this.variables}${this.style}${this._style}`);
+				GM_addStyle(`${this.style}${this._style}`);
 			},
 			contentLoaded() {
 				this._globalSearch();
-			},
-			load() {
-				this.changeScrollBarColor();
 			},
 		};
 	}
