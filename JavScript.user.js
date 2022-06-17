@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.3.0
+// @version         3.3.5
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -2398,9 +2398,9 @@
 				const node = switcher.querySelector(`button[for="${id}"]`);
 				if (!node) return;
 
-				node.textContent = `${src ? "查看" : "暂无"}${title}`;
+				node.textContent = `${src?.length ? "查看" : "暂无"}${title}`;
 				const { parentNode } = node;
-				if (!src) return parentNode.setAttribute("title", "暂无资源");
+				if (!src?.length) return parentNode.setAttribute("title", "暂无资源");
 
 				parentNode.setAttribute("title", "点击放大或切换静音");
 				node.removeAttribute("disabled");
@@ -2664,8 +2664,9 @@
 			return super.init();
 		}
 
-		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M", "D"];
-		excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
+		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB", "M_SORT", "M_MAGNET", "D"];
+		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
+
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
 			movie: /^\/v\//i,
@@ -2938,13 +2939,13 @@
 			docStart() {
 				const style = `
                 .first-block .copy-to-clipboard,
-                .top-meta,
-                .preview-video-container {
+                .review-buttons .panel-block:nth-child(2),
+                .top-meta {
                     display: none;
                 }
                 img {
                     vertical-align: middle;
-                    width: 100%;
+                    width: 100% !important;
                 }
                 h2.title {
                     margin-bottom: 10px !important;
@@ -2954,6 +2955,8 @@
                     margin-bottom: 20px;
                 }
                 .video-meta-panel > .columns {
+                    position: relative;
+                    overflow: hidden;
                     margin: 0;
                 }
                 .video-meta-panel > .columns > .column {
@@ -2967,16 +2970,44 @@
                     margin: 10px;
                     background-color: #000;
                 }
-                .column-video-cover img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
+                @media only screen and (max-width: 1024px) {
+                    .video-meta-panel .column-video-cover {
+                        width: auto !important;
+                    }
+                }
+                .column-video-cover .cover-container {
+                    display: inline !important;
+                    position: static !important;
+                }
+                .column-video-cover .cover-container:after {
+                    height: 100%
+                }
+                .column-video-cover .cover-container .play-button {
+                    z-index: -1;
+                }
+                .x-contain.x-in + .play-button {
+                    z-index: auto;
+                }
+                .column-video-cover a > img {
+                    opacity: 0;
+                }
+                .x-contain {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: contain !important;
+                    border: none;
+                    opacity: 0;
+                    z-index: -1;
+                }
+                .x-contain.x-in {
+                    z-index: auto;
+                    display: block !important;
                 }
                 .movie-panel-info div.panel-block {
                     padding: 8px 0;
-                }
-                .review-buttons .panel-block:nth-child(2) {
-                    display: none;
                 }
                 .video-detail > .columns {
                     margin: 0 0 20px;
@@ -3020,12 +3051,14 @@
                         grid-template-columns: repeat(7, minmax(0, 1fr));
                     }
                 }
-                .preview-images .tile-item {
+                .preview-video-container:after {
+                    height: 100%;
+                }
+                .preview-images > a {
                     aspect-ratio: var(--x-sprite-ratio);
                 }
-                .preview-images .tile-item img {
-                    width: 100%;
-                    height: 100%;
+                .preview-images img {
+                    height: 100% !important;
                     object-fit: cover;
                 }
                 #magnets > .message {
@@ -3063,6 +3096,16 @@
                 .tile-images.tile-small .tile-item > div {
                     padding: 0 10px !important;
                 }
+                #x-switch {
+                    padding: 0 0 8px;
+                    display: none;
+                }
+                #x-switch > * {
+                    flex: 1;
+                }
+                .x-flex {
+                    display: flex !important;
+                }
                 `;
 				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}`);
 			},
@@ -3071,7 +3114,7 @@
 				this.globalClick([".tile-images.tile-small a.tile-item"]);
 
 				const preview = DOC.querySelector(".preview-images");
-				if (!preview.querySelector(".tile-item")) preview.closest(".columns").remove();
+				if (preview && !preview.querySelector(".tile-item")) preview.closest(".columns").remove();
 
 				this.params = this.getParams();
 
@@ -3103,9 +3146,113 @@
 					studio: findInfos("片商:"),
 				};
 			},
-			initSwitch() {},
-			updateSwitch() {},
-			_movieTitle() {},
+			initSwitch() {
+				const info = DOC.querySelector(".movie-panel-info");
+				info.insertAdjacentHTML(
+					"afterbegin",
+					`<div class="panel-block" id="x-switch">
+                        <a class="button is-small is-light is-active" for="x-switch-cover" title="点击放大或切换静音">封面</a>
+                    </div>`
+				);
+				const cover = DOC.querySelector(".column-video-cover a > img");
+				cover.id = "x-switch-cover";
+				cover.classList.add("x-contain", "x-in");
+
+				DOC.querySelector("#x-switch").addEventListener("click", ({ target }) => {
+					const { classList } = target;
+					if (
+						target.nodeName !== "A" ||
+						target.getAttribute("disabled") === "" ||
+						classList.contains("is-loading")
+					) {
+						return;
+					}
+
+					const id = target.getAttribute("for");
+					const item = DOC.querySelector(`#${id}`);
+
+					if (classList.contains("is-active")) {
+						item.parentNode.click();
+						item.muted = !item.muted;
+					} else {
+						const preItem = DOC.querySelector(".column-video-cover .x-contain.x-in");
+						preItem?.pause && preItem.pause();
+						preItem.classList.toggle("x-in");
+						item.classList.toggle("x-in");
+						item?.play && item.play();
+						item?.focus && item.focus();
+
+						const preTarget = DOC.querySelector("#x-switch a.is-active");
+						preTarget.removeAttribute("title");
+						preTarget.classList.toggle("is-active");
+						target.classList.toggle("is-active");
+						target.setAttribute("title", "点击放大或切换静音");
+					}
+				});
+			},
+			async updateSwitch({ key, title, type }) {
+				if (!type) type = key;
+				const id = `x-switch-${key}`;
+				const switcher = DOC.querySelector("#x-switch");
+
+				const start = () => {
+					if (!switcher.classList.contains("x-flex")) switcher.classList.add("x-flex");
+					switcher.insertAdjacentHTML(
+						"beforeend",
+						`<a class="button is-small is-light is-loading" for="${id}">查看${title}</a>`
+					);
+				};
+
+				const src = await this[`movie${key[0].toUpperCase()}${key.slice(1)}`](this.params, start);
+				const node = switcher.querySelector(`a[for="${id}"]`);
+				if (!node) return;
+
+				node.classList.remove("is-loading");
+				if (!src?.length) {
+					node.setAttribute("disabled", "");
+					node.textContent = `暂无${title}`;
+					return;
+				}
+
+				let item = DOC.create(type, { id, class: "x-contain" });
+				if (typeof src === "string") item.src = src;
+
+				if (type === "video") {
+					if (Object.prototype.toString.call(src) === "[object Array]") {
+						src.forEach(params => {
+							const source = DOC.create("source", params);
+							item.appendChild(source);
+						});
+					}
+
+					item.controls = true;
+					item.currentTime = 3;
+					item.muted = true;
+					item.preload = "metadata";
+					item.addEventListener("click", e => {
+						e.preventDefault();
+						e.stopPropagation();
+						const { target: video } = e;
+						video.paused ? video.play() : video.pause();
+					});
+				} else {
+					item = DOC.create("a", { "data-fancybox": "gallery", href: item.src }, item);
+				}
+
+				DOC.querySelector(".column-video-cover").insertAdjacentElement("beforeend", item);
+			},
+			async _movieTitle() {
+				const start = () => {
+					DOC.querySelector("#x-switch").insertAdjacentHTML(
+						"afterend",
+						`<div class="panel-block"><strong>机翻:</strong>&nbsp;<span class="value x-transTitle">查询中...</span></div>`
+					);
+				};
+
+				const transTitle = await this.movieTitle(this.params, start);
+				const transTitleNode = DOC.querySelector(".x-transTitle");
+				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
+			},
 		};
 		others = {
 			docStart() {
