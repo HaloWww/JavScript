@@ -698,7 +698,7 @@
 					name: "滚动加载",
 					key: "L_SCROLL",
 					type: "switch",
-					info: "滚动加载更多",
+					info: "滚动加载下一页",
 					defaultVal: true,
 				},
 				{
