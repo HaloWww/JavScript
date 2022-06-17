@@ -776,7 +776,7 @@
 					name: "离线验证",
 					key: "D_VERIFY",
 					type: "number",
-					info: "『<strong>一键离线</strong>』后执行，查询以验证离线下载结果，每次间隔一秒<br>设置验证次数上限，次数越多验证越精准<br>建议 3 ~ 5，默认 3",
+					info: "『<strong>一键离线</strong>』后执行，查询以验证离线下载结果，每次间隔一秒<br>设置验证次数上限，上限次数越多验证越精准<br>建议 3 ~ 5，默认 3",
 					placeholder: "仅支持整数 ≥ 0",
 					defaultVal: 3,
 				},
