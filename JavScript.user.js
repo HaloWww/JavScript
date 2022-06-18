@@ -246,12 +246,13 @@
 			GM_setValue("DETAILS", details);
 		}
 		static addTemporaryOb(val) {
-			if (val) return;
+			if (!val) return;
 			const obs = GM_getValue("TEMPORARY_OBS", []);
-			GM_setValue("TEMPORARY_OBS", obs.push(val));
+			obs.push(val);
+			GM_setValue("TEMPORARY_OBS", obs);
 		}
 		static reduceTemporaryOb(val) {
-			if (val) return;
+			if (!val) return;
 			const obs = GM_getValue("TEMPORARY_OBS", []).filter(item => item !== val);
 			GM_setValue("TEMPORARY_OBS", obs);
 		}
@@ -286,7 +287,7 @@
 						.replace("//t", "//img")
 						.replace("thumbs", "images")
 				: "";
-			const jsImg = jsRes ? jsRes?.querySelector(".news a img[alt*='.th']").src.replace(".th", "") : "";
+			const jsImg = jsRes ? jsRes?.querySelector(".news a img[alt*='.th']")?.src.replace(".th", "") : "";
 
 			return bjImg || jsImg || "";
 		}
