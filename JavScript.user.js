@@ -2365,49 +2365,46 @@
 				const switcher = info.querySelector("#x-switch");
 				switcher.addEventListener("click", ({ target }) => {
 					const id = target.getAttribute("for");
-					const { classList } = target;
-
 					if (!id) return;
+
+					const { classList } = target;
+					const curActive = bigImage.querySelector(".x-contain.x-in");
+
 					if (classList.contains("active")) {
-						const active = bigImage.querySelector(".x-contain.x-in");
-						const { nodeName } = active;
-						if (nodeName === "IMG") bigImage.click();
-						if (nodeName === "VIDEO") active.muted = !active.muted;
+						curActive.nodeName === "VIDEO" ? (curActive.muted = !curActive.muted) : bigImage.click();
 						return;
 					}
 
-					const preActive = switcher.querySelector("button.active");
-					preActive.classList.toggle("active");
-					preActive.setAttribute("title", "点击切换");
+					curActive.classList.toggle("x-in");
+					curActive?.pause && curActive.pause();
+					const active = bigImage.querySelector(`#${id}`);
+					active.classList.toggle("x-in");
+					if (active.nodeName === "IMG") {
+						const { src } = active;
+						bigImage.href = src;
+						bigImage.querySelector(".x-grass-img").src = src;
+					}
+					active?.play && active.play();
+					active?.focus && active.focus();
+
+					const curTarget = switcher.querySelector("button.active");
+					curTarget.classList.toggle("active");
+					curTarget.setAttribute("title", "点击切换");
 					classList.toggle("active");
 					target.removeAttribute("title");
-
-					bigImage.querySelector(".x-contain.x-in").classList.toggle("x-in");
-					const targetNode = bigImage.querySelector(`#${id}`);
-					targetNode.classList.toggle("x-in");
-
-					bigImage.querySelectorAll("video.x-contain:not(.x-in)").forEach(v => v?.pause());
-
-					const { nodeName, src } = targetNode;
-					if (nodeName === "VIDEO") {
-						targetNode.focus();
-						return targetNode.play();
-					}
-					bigImage.querySelector(".x-grass-img").src = src;
-					bigImage.href = src;
 				});
 			},
 			async updateSwitch({ key, title, type }) {
 				if (!type) type = key;
-
 				const id = `x-switch-${key}`;
+
 				const switcher = DOC.querySelector("#x-switch");
 				const start = () => {
 					if (!switcher.classList.contains("x-show")) switcher.classList.add("x-show");
 					switcher.insertAdjacentHTML(
 						"beforeend",
-						`<div class="btn-group btn-group-sm" role="group" title="查询中...">
-				            <button type="button" class="btn btn-default" for="${id}" disabled>查询${title}</button>
+						`<div class="btn-group btn-group-sm" role="group">
+				            <button type="button" class="btn btn-default" for="${id}" disabled>查询中...</button>
 				        </div>`
 					);
 				};
@@ -2417,10 +2414,9 @@
 				if (!node) return;
 
 				node.textContent = `${src?.length ? "查看" : "暂无"}${title}`;
-				const { parentNode } = node;
-				if (!src?.length) return parentNode.setAttribute("title", "暂无资源");
+				if (!src?.length) return;
 
-				parentNode.setAttribute("title", "点击放大或切换静音");
+				node.parentNode.setAttribute("title", "点击放大或切换静音");
 				node.removeAttribute("disabled");
 				node.setAttribute("title", "点击切换");
 
@@ -3373,8 +3369,7 @@
                             <div class="tags">
                                 <a
                                     class="tag is-danger is-small is-light x-from"
-                                    href="${href ? href : "javascript:void(0);"}"
-                                    ${href ? `target="_blank"` : ""}
+                                    ${href ? `href="${href}" target="_blank" title="查看详情"` : ""}
                                 >
                                     ${from}
                                 </a>
