@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.3.5
+// @version         3.3.7
 // @author          blc
 // @description     一站式体验，JavBus 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -806,26 +806,29 @@
 		}
 		createMenu() {
 			GM_addStyle(`
-            .x-scrollbar-hide ::-webkit-scrollbar {
+            .x-scrollbar-hide body::-webkit-scrollbar {
                 display: none;
             }
             .x-mask {
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 9999;
                 display: none;
-		        position: fixed;
-		        z-index: 9999;
-		        width: 100vw;
-		        height: 100vh;
-		        top: 0;
-		        left: 0;
-                border: none;
-                background: transparent;
-                backdrop-filter: blur(50px);
-                padding: 0;
-                margin: 0;
                 box-sizing: border-box;
-		    }
+                width: 100vw;
+                height: 100vh;
+                margin: 0;
+                padding: 0;
+                background: transparent;
+                border: none;
+                backdrop-filter: blur(50px);
+            }
             iframe.x-mask {
                 backdrop-filter: none;
+            }
+            .x-hide {
+                display: none;
             }
             .x-show {
                 display: block !important;
@@ -1101,18 +1104,15 @@
             --x-bgc: #121212;
             --x-sub-bgc: #202020;
             --x-ftc: #fffffff2;
-            --x-sub-ftc: #aaaaaa;
+            --x-sub-ftc: #aaa;
             --x-grey: #313131;
             --x-blue: #0a84ff;
             --x-orange: #ff9f0a;
             --x-green: #30d158;
             --x-red: #ff453a;
-            /* title line height */
             --x-line-h: 22px;
-            /* thumb/cover width */
             --x-thumb-w: 190px;
             --x-cover-w: 295px;
-            /* ratios */
             --x-thumb-ratio: 334 / 473;
             --x-cover-ratio: 135 / 91;
             --x-avatar-ratio: 1;
@@ -1125,17 +1125,18 @@
             height: 8px !important;
         }
         ::-webkit-scrollbar-thumb {
-            border-radius: 4px !important;
             background: #c1c1c1;
+            border-radius: 4px !important;
         }
         * {
-            outline: none !important;
-            text-shadow: none !important;
             text-decoration: none !important;
+            text-shadow: none !important;
+            outline: none !important;
         }
         `;
 		dmStyle = `
-        ::-webkit-scrollbar-thumb, button {
+        ::-webkit-scrollbar-thumb,
+        button {
             background: var(--x-grey) !important;
         }
         * {
@@ -1144,28 +1145,42 @@
         *:not(span[class]) {
             border-color: var(--x-grey) !important;
         }
-        html, body, input, textarea {
+        html,
+        body,
+        input,
+        textarea {
             background: var(--x-bgc) !important;
         }
-        body, *::placeholder {
+        body,
+        *::placeholder {
             color: var(--x-sub-ftc) !important;
         }
         nav {
             background: var(--x-sub-bgc) !important;
         }
-        a, button, h1, h2, h3, h4, h5, h6, input, p, textarea {
+        a,
+        button,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        input,
+        p,
+        textarea {
             color: var(--x-ftc) !important;
         }
         img {
-            filter: brightness(.9) contrast(.9) !important;
+            filter: brightness(0.9) contrast(0.9) !important;
         }
         `;
 		customStyle = `
         #x-status {
             margin-bottom: 20px;
             color: var(--x-sub-ftc);
-            text-align: center;
             font-size: 14px !important;
+            text-align: center;
         }
         .x-ml {
             margin-left: 10px;
@@ -1174,12 +1189,15 @@
             margin-right: 10px;
         }
         .x-in {
-            transition: opacity .25s linear;
             opacity: 1 !important;
+            transition: opacity 0.25s linear;
         }
         .x-out {
-            transition: opacity .25s linear;
             opacity: 0 !important;
+            transition: opacity 0.25s linear;
+        }
+        .x-flex {
+            display: flex !important;
         }
         .x-cover {
             width: var(--x-cover-w) !important;
@@ -1188,48 +1206,48 @@
             aspect-ratio: var(--x-cover-ratio) !important;
         }
         .x-ellipsis {
-            overflow: hidden;
-            text-overflow: ellipsis;
             display: -webkit-box !important;
+            overflow: hidden;
+            white-space: unset !important;
+            text-overflow: ellipsis;
             -webkit-line-clamp: 1;
             -webkit-box-orient: vertical;
-            white-space: unset !important;
         }
         .x-line {
             overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap;
+            text-overflow: ellipsis;
         }
         .x-title {
             line-height: var(--x-line-h) !important;
         }
         .x-matched {
-            font-weight: bold;
             color: var(--x-blue) !important;
+            font-weight: bold;
         }
         .x-player {
             position: relative;
-            overflow: hidden;
             display: block;
+            overflow: hidden;
             cursor: pointer;
         }
         .x-player::after {
-            content: "";
             position: absolute;
-            width: 100%;
-            height: 100%;
             top: 0;
             left: 0;
-            transition: all .25s ease-out;
-            background-color: rgba(0, 0, 0, .2);
-            background-position: center;
-            background-repeat: no-repeat;
-            opacity: .85;
+            width: 100%;
+            height: 100%;
+            background-color: rgb(0 0 0 / 20%);
             background-image: url(${GM_getResourceURL("play")});
+            background-repeat: no-repeat;
+            background-position: center;
             background-size: 40px;
+            opacity: 0.85;
+            transition: all 0.25s ease-out;
+            content: "";
         }
         .x-player:hover::after {
-            background-color: rgba(0, 0, 0, 0);
+            background-color: rgb(0 0 0 / 0%);
         }
         .x-player img {
             filter: none !important;
@@ -1601,7 +1619,7 @@
 
 			return Apis.driveRename(res);
 		};
-
+		// OFFLINE
 		driveOffline = async (e, { magnets, code, title }) => {
 			const { target } = e;
 			const { magnet: type } = target.dataset;
@@ -1747,8 +1765,8 @@
         .avatar-box,
         .sample-box {
             width: var(--x-thumb-w) !important;
-            border: none !important;
             margin: 10px !important;
+            border: none !important;
         }
         .movie-box .photo-frame,
         .avatar-box .photo-frame,
@@ -1769,13 +1787,13 @@
         .movie-box img,
         .avatar-box img,
         .sample-box img {
+            width: 100% !important;
             min-width: unset !important;
-            min-height: unset !important;
             max-width: none !important;
+            height: 100% !important;
+            min-height: unset !important;
             max-height: none !important;
             margin: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
             object-fit: cover !important;
         }
         .movie-box > *,
@@ -1786,10 +1804,10 @@
         .movie-box > *:nth-child(2),
         .avatar-box > *:nth-child(2),
         .sample-box > *:nth-child(2) {
-            padding: 0 10px 10px !important;
-            border: none !important;
-            line-height: var(--x-line-h) !important;
             height: auto !important;
+            padding: 0 10px 10px !important;
+            line-height: var(--x-line-h) !important;
+            border: none !important;
         }
         `;
 		dmBoxStyle = `
@@ -1883,15 +1901,15 @@
                 `;
 				const dmStyle = `
                 .pagination > li > a {
-				    background-color: var(--x-sub-bgc) !important;
-				    color: var(--x-ftc) !important;
-				}
-				.pagination > li:not(.active) > a:hover {
-				    background-color: var(--x-grey) !important;
-				}
-				.nav-pills > li.active > a {
-				    background-color: var(--x-blue) !important;
-				}
+                    color: var(--x-ftc) !important;
+                    background-color: var(--x-sub-bgc) !important;
+                }
+                .nav-pills > li.active > a {
+                    background-color: var(--x-blue) !important;
+                }
+                .pagination > li:not(.active) > a:hover {
+                    background-color: var(--x-grey) !important;
+                }
                 `;
 				this.globalDark(
 					`${this.style}${this._style}${this.boxStyle}${this.customStyle}${style}${this.listMovieTitle()}`,
@@ -2019,13 +2037,13 @@
 				    margin: 20px 0 10px 0 !important;
 				}
                 .genre-box {
-				    padding: 20px !important;
 				    margin: 10px 0 20px 0 !important;
+				    padding: 20px !important;
 				}
                 .genre-box a {
+				    text-align: left !important;
 				    cursor: pointer !important;
 				    user-select: none !important;
-				    text-align: left !important;
 				}
                 .genre-box input {
 				    margin: 0 !important;
@@ -2075,8 +2093,8 @@
                 #toptb {
                     position: fixed !important;
                     top: 0 !important;
-                    left: 0 !important;
                     right: 0 !important;
+                    left: 0 !important;
                     z-index: 999 !important;
                     border-color: #e7e7e7;
                     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15), 0 1px 5px rgba(0, 0, 0, .075);
@@ -2141,8 +2159,8 @@
                     padding: 0 !important;
                 }
                 #magneturlpost + .movie {
-                    padding: 10px !important;
                     margin-top: 20px !important;
+                    padding: 10px !important;
                 }
 				.screencap, .info {
 				    padding: 10px !important;
@@ -2150,10 +2168,10 @@
 				}
                 .bigImage {
                     position: relative;
-                    overflow: hidden;
                     display: block;
-                    aspect-ratio: var(--x-cover-ratio);
+                    overflow: hidden;
                     opacity: 0;
+                    aspect-ratio: var(--x-cover-ratio);
                 }
                 .info p {
                     line-height: var(--x-line-h) !important;
@@ -2177,12 +2195,12 @@
                 .avatar-box,
 				.sample-box,
 				.movie-box {
-				    word-spacing: 0 !important;
 				    vertical-align: top !important;
+				    word-spacing: 0 !important;
 				}
                 .movie-box > *:nth-child(2) {
-                    text-align: left !important;
                     min-height: 32px !important;
+                    text-align: left !important;
                 }
                 .x-grass-img {
                     object-fit: cover;
@@ -2190,19 +2208,19 @@
                 .x-grass-mask,
                 .x-contain {
                     position: absolute;
-                    width: 100% !important;
-                    height: 100% !important;
                     top: 0;
                     left: 0;
+                    width: 100% !important;
+                    height: 100% !important;
                 }
                 .x-grass-mask {
                     backdrop-filter: blur(50px);
                 }
                 .x-contain {
+                    z-index: -1;
+                    object-fit: contain;
                     border: none;
                     opacity: 0;
-                    object-fit: contain;
-                    z-index: -1;
                 }
                 video.x-contain {
                     background-color: #000;
@@ -2230,9 +2248,9 @@
                     position: unset !important;
                 }
                 .x-table tr {
-                    table-layout: fixed;
                     display: table;
                     width: 100%;
+                    table-layout: fixed;
                 }
                 .x-table tr > * {
                     vertical-align: middle !important;
@@ -2632,7 +2650,7 @@
                                 class="x-mr"
                                 title="复制磁力链接"
                             >
-                                链接复制
+                                复制链接
                             </a>
                             <a
                                 hidden
@@ -2664,8 +2682,8 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB", "M_SORT", "M_MAGNET", "D"];
-		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR"];
+		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB", "D"];
+		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB"];
 
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
@@ -2676,8 +2694,8 @@
 		// styles
 		_style = `
         html {
-            overflow: overlay;
             padding: 0 !important;
+            overflow: overlay;
         }
         body {
             padding-top: 3.25rem;
@@ -2686,8 +2704,8 @@
             padding: 0;
         }
         section.section {
-		    padding: 20px;
-		}
+            padding: 20px;
+        }
         #search-type,
         #video-search {
             border: none;
@@ -2703,11 +2721,11 @@
         nav.app-desktop-banner {
             display: none !important;
         }
-        [data-theme=dark] ::-webkit-scrollbar-thumb {
+        [data-theme="dark"] ::-webkit-scrollbar-thumb {
             background: #313131 !important;
         }
-        [data-theme=dark] img {
-            filter: brightness(.9) contrast(.9);
+        [data-theme="dark"] img {
+            filter: brightness(0.9) contrast(0.9);
         }
         `;
 
@@ -2720,9 +2738,6 @@
 		list = {
 			docStart() {
 				const style = `
-                section.section {
-                    padding-bottom: 0;
-                }
                 @media (max-width: 575.98px) {
                     .movie-list.v,
                     .actors {
@@ -2781,21 +2796,21 @@
                 .actors,
                 .section-container {
                     display: none;
-                    padding: 0 0 20px;
-                    margin: 0 !important;
                     gap: 20px;
+                    margin: 0 !important;
+                    padding: 0 0 20px;
                 }
                 .movie-list .box {
                     padding: 0 0 10px;
                 }
                 a.box:focus,
                 a.box:hover,
-                [data-theme=dark] a.box:focus,
-                [data-theme=dark] a.box:hover {
+                [data-theme="dark"] a.box:focus,
+                [data-theme="dark"] a.box:hover {
                     box-shadow: none !important;
                 }
-                :root[data-theme=dark] .box:focus,
-                :root[data-theme=dark] .box:hover {
+                [data-theme="dark"] .box:focus,
+                [data-theme="dark"] .box:hover {
                     background-color: #0a0a0a !important;
                 }
                 .movie-list .item .cover {
@@ -2813,13 +2828,13 @@
                     object-fit: contain;
                 }
                 .movie-list .item .cover:hover img {
-                    transform: none;
                     z-index: 0;
+                    transform: none;
                 }
                 .movie-list .item .video-title {
-                    font-size: 14px;
-                    padding: 0;
                     margin: 10px 10px 0;
+                    padding: 0;
+                    font-size: 14px;
                     line-height: var(--x-line-h);
                 }
                 .movie-list .item .score {
@@ -2829,30 +2844,39 @@
                     padding: 4px 10px 0;
                 }
                 .movie-list .box .tags {
-                    padding: 4px 10px 0;
-                    margin-bottom: -8px;
                     min-height: 36px;
+                    margin-bottom: -8px;
+                    padding: 4px 10px 0;
                 }
                 .movie-list .box .tags .tag {
                     margin-bottom: 8px;
                 }
                 .actors .box {
-                    font-size: 14px;
                     margin-bottom: 0;
                     padding-bottom: 10px;
+                    font-size: 14px;
                 }
                 .actor-box a strong {
                     padding: 10px 10px 0;
                     line-height: unset;
                 }
+                .section-container .box {
+                    font-size: 14px;
+                }
                 nav.pagination {
                     display: none;
                     margin: 0 -4px !important;
-                    padding: 20px 0 40px 0;
+                    padding: 20px 0 40px;
                 }
                 nav.pagination,
-                :root[data-theme=dark] nav.pagination {
+                :root[data-theme="dark"] nav.pagination {
                     border-top: none !important;
+                }
+                .awards {
+                    padding-bottom: 20px;
+                }
+                .awards:last-child {
+                    padding-bottom: 0;
                 }
                 `;
 				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}${this.listMovieTitle()}`);
@@ -2869,6 +2893,7 @@
 				if (DOC.querySelectorAll(selectors).length === 1) {
 					return selectors.forEach(item => this.modifyLayout(item));
 				}
+
 				GM_addStyle(`
                 .movie-list, .actors, .section-container { display: grid; }
                 nav.pagination { display: flex; }
@@ -2884,7 +2909,16 @@
 				_container.style.cssText += "display:grid";
 
 				const infScroll = this.listScroll(_container, "", ".pagination-next");
-				if (!infScroll) return GM_addStyle(`nav.pagination { display: flex; }`);
+				const setSection = () => GM_addStyle(`section.section { padding-bottom: 0; }`);
+				if (!infScroll) {
+					const pagination = DOC.querySelector("nav.pagination");
+					if (pagination) {
+						pagination.classList.add("x-flex");
+						setSection();
+					}
+					return;
+				}
+				setSection();
 
 				infScroll?.on("request", async (_, fetchPromise) => {
 					const { body } = await fetchPromise.then();
@@ -2908,10 +2942,7 @@
 			modifyMovieBox(node = DOC) {
 				const items = node.querySelectorAll(".box");
 				for (const item of items) {
-					const title = item?.querySelector(".video-title");
-					if (!title) continue;
-					title.classList.add("x-ellipsis");
-					title.classList.add("x-title");
+					item?.querySelector(".video-title")?.classList.add("x-ellipsis", "x-title");
 				}
 			},
 			async _driveMatch(node = DOC) {
@@ -2934,53 +2965,61 @@
 		};
 		movie = {
 			params: {},
-			magnets: null,
 
 			docStart() {
 				const style = `
                 .first-block .copy-to-clipboard,
                 .review-buttons .panel-block:nth-child(2),
-                .top-meta {
+                .top-meta > *:not(span.tag) {
                     display: none;
                 }
                 img {
-                    vertical-align: middle;
                     width: 100% !important;
+                    vertical-align: middle;
                 }
                 h2.title {
                     margin-bottom: 10px !important;
                 }
                 .video-meta-panel {
-                    padding: 0;
                     margin-bottom: 20px;
+                    padding: 0;
                 }
                 .video-meta-panel > .columns {
                     position: relative;
-                    overflow: hidden;
                     margin: 0;
+                    overflow: hidden;
+                }
+                @media screen and (min-width: 1024px) {
+                    .video-meta-panel > .columns {
+                        align-items: start;
+                    }
                 }
                 .video-meta-panel > .columns > .column {
                     padding: 10px;
                 }
                 .column-video-cover {
                     position: relative;
-                    overflow: hidden;
-                    aspect-ratio: var(--x-cover-ratio);
-                    padding: 0 !important;
                     margin: 10px;
+                    padding: 0 !important;
+                    overflow: hidden;
                     background-color: #000;
+                    aspect-ratio: var(--x-cover-ratio);
                 }
                 @media only screen and (max-width: 1024px) {
                     .video-meta-panel .column-video-cover {
                         width: auto !important;
+                        margin-bottom: 0;
+                    }
+                    #magnets-content > .columns {
+                        padding: 0;
                     }
                 }
                 .column-video-cover .cover-container {
-                    display: inline !important;
                     position: static !important;
+                    display: inline !important;
                 }
-                .column-video-cover .cover-container:after {
-                    height: 100%
+                .column-video-cover .cover-container::after {
+                    height: 100%;
                 }
                 .column-video-cover .cover-container .play-button {
                     z-index: -1;
@@ -2988,26 +3027,38 @@
                 .x-contain.x-in + .play-button {
                     z-index: auto;
                 }
+                .preview-images img {
+                    height: 100% !important;
+                    object-fit: cover;
+                }
                 .column-video-cover a > img {
+                    max-height: unset;
                     opacity: 0;
                 }
                 .x-contain {
                     position: absolute;
                     top: 0;
                     left: 0;
+                    z-index: -1;
                     width: 100% !important;
                     height: 100% !important;
                     object-fit: contain !important;
                     border: none;
                     opacity: 0;
-                    z-index: -1;
                 }
                 .x-contain.x-in {
                     z-index: auto;
                     display: block !important;
                 }
                 .movie-panel-info div.panel-block {
-                    padding: 8px 0;
+                    padding: 10px 0;
+                    font-size: 14px;
+                }
+                .movie-panel-info > div.panel-block:first-child {
+                    padding-top: 0;
+                }
+                .movie-panel-info > div.panel-block:last-child {
+                    padding-bottom: 0;
                 }
                 .video-detail > .columns {
                     margin: 0 0 20px;
@@ -3051,25 +3102,37 @@
                         grid-template-columns: repeat(7, minmax(0, 1fr));
                     }
                 }
-                .preview-video-container:after {
+                .preview-video-container::after {
                     height: 100%;
                 }
                 .preview-images > a {
                     aspect-ratio: var(--x-sprite-ratio);
                 }
-                .preview-images img {
-                    height: 100% !important;
-                    object-fit: cover;
-                }
                 #magnets > .message {
                     margin-bottom: 0;
+                }
+                .top-meta {
+                    padding: 0 !important;
+                }
+                .top-meta > span.tag {
+                    margin: 0 5px 10px 0;
+                }
+                #magnets-content {
+                    max-height: 500px;
+                    overflow: auto;
                 }
                 #magnets-content > .columns {
                     margin: 0;
                 }
                 #magnets-content > .columns > .column {
-                    padding: 10px;
                     margin: 0;
+                    padding: 10px;
+                }
+                .buttons.column button {
+                    margin: 0 !important;
+                }
+                .buttons.column button:nth-child(2) {
+                    margin-left: 5px !important;
                 }
                 .review-items .review-item {
                     padding: 10px 0;
@@ -3081,13 +3144,13 @@
                     padding-bottom: 0;
                 }
                 .message-header {
-                    padding: 10px;
+                    padding: 8px 10px;
                 }
                 .tile-images.tile-small .tile-item {
-                    background-color: #fff;
                     padding-bottom: 10px;
+                    background-color: #fff;
                 }
-                [data-theme=dark] .tile-images.tile-small .tile-item {
+                [data-theme="dark"] .tile-images.tile-small .tile-item {
                     background-color: #0a0a0a;
                 }
                 .tile-images.tile-small .tile-item img {
@@ -3097,14 +3160,13 @@
                     padding: 0 10px !important;
                 }
                 #x-switch {
-                    padding: 0 0 8px;
                     display: none;
                 }
                 #x-switch > * {
                     flex: 1;
                 }
-                .x-flex {
-                    display: flex !important;
+                .x-from {
+                    min-width: 70px;
                 }
                 `;
 				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}`);
@@ -3114,7 +3176,7 @@
 				this.globalClick([".tile-images.tile-small a.tile-item"]);
 
 				const preview = DOC.querySelector(".preview-images");
-				if (preview && !preview.querySelector(".tile-item")) preview.closest(".columns").remove();
+				if (preview && !preview.querySelector("a")) preview.closest(".columns").remove();
 
 				this.params = this.getParams();
 
@@ -3127,6 +3189,7 @@
 				this.updateSwitch({ key: "player", title: "视频", type: "video" });
 
 				this._movieTitle();
+				this._movieMagnet();
 			},
 			getParams() {
 				const infos = Array.from(DOC.querySelectorAll(".movie-panel-info > .panel-block") ?? []);
@@ -3252,6 +3315,85 @@
 				const transTitle = await this.movieTitle(this.params, start);
 				const transTitleNode = DOC.querySelector(".x-transTitle");
 				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
+			},
+			async _movieMagnet() {
+				const start = () => {
+					const node = DOC.querySelector(".top-meta");
+					if (!node) return;
+					node.insertAdjacentHTML(
+						"beforeend",
+						`<span class="tag is-success">磁力搜索</span><span class="tag is-success">自动去重</span>`
+					);
+				};
+				let magnets = (await this.movieMagnet(this.params, start)) ?? [];
+				const curMagnets = Array.from(DOC.querySelectorAll("#magnets-content .item") ?? []).map(item => {
+					const name = item.querySelector(".magnet-name");
+					const size = name.querySelector(".meta").textContent.split(",")[0].trim();
+					return {
+						bytes: transToBytes(size),
+						date: item.querySelector(".date .time").textContent,
+						from: "JavDB",
+						link: name.querySelector("a").href.split("&")[0],
+						name: name.querySelector(".name").textContent,
+						size,
+						zh: !!name?.querySelector(".tags .tag.is-warning.is-small.is-light"),
+					};
+				});
+				magnets = unique([...curMagnets, ...magnets], "link");
+				this._movieSort(magnets);
+			},
+			_movieSort(magnets) {
+				const start = () => {
+					const node = DOC.querySelector(".top-meta");
+					if (node) node.insertAdjacentHTML("beforeend", `<span class="tag is-success">磁力排序</span>`);
+				};
+				magnets = this.movieSort(magnets, start);
+				if (!magnets.length) return;
+
+				magnets = magnets.map(
+					({ link, name, size, zh, date, from, href }, index) => `
+                    <div class="item columns is-desktop${(index + 1) % 2 === 0 ? "" : " odd"}">
+                        <div class="magnet-name column is-four-fifths">
+                            <a href="${link}">
+                                <span class="name">${name}</span>
+                            </a>
+                        </div>
+                        <div class="column">
+                            <div class="tags">
+                                <span class="tag is-warning is-small is-light ${zh ? "" : " x-out"}">字幕</span>
+                            </div>
+                        </div>
+                        <div class="date column">
+                            <span class="time">${size}</span>
+                        </div>
+                        <div class="date column">
+                            <span class="time">${date}</span>
+                        </div>
+                        <div class="column">
+                            <div class="tags">
+                                <a
+                                    class="tag is-danger is-small is-light x-from"
+                                    href="${href ? href : "javascript:void(0);"}"
+                                    ${href ? `target="_blank"` : ""}
+                                >
+                                    ${from}
+                                </a>
+                            </div>
+                        </div>
+                        <div class="buttons column">
+                            <button class="button is-info is-small" data-copy="${link}" title="复制磁力链接">复制链接</button><button class="button is-info is-small x-hide" data-magnet="${link}" title="仅添加离线任务">添加离线</button>
+                        </div>
+                    </div>
+                    `
+				);
+				magnets = magnets.join("");
+				const node = DOC.querySelector("#magnets-content");
+				node.innerHTML = magnets;
+
+				DOC.querySelector("#magnets-content").addEventListener("click", e => {
+					handleCopyTxt(e, "复制成功");
+					// !handleCopyTxt(e, "复制成功") && this._driveOffline(e);
+				});
 			},
 		};
 		others = {
