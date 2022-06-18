@@ -21,9 +21,9 @@
 // @grant           GM_xmlhttpRequest
 // @grant           GM_setClipboard
 // @grant           GM_notification
-// @grant           GM_addElement
 // @grant           GM_deleteValue
 // @grant           GM_listValues
+// @grant           GM_addElement
 // @grant           GM_openInTab
 // @grant           GM_addStyle
 // @grant           GM_setValue
@@ -36,16 +36,16 @@
 
 /**
  * TODO:
- * ⏳ 脚本 - JavDB 兼容
- * ⏳ 115 - 离线垃圾文件清理?
- * ⏳ 115 - 手动档?
- * ⏳ 详情 - 发送磁链至 aria2 下载?
- * ⏳ 列表 - 自定义数据聚合页
+ * ⏳ 脚本 - 兼容 JavDB
  * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
+ * ❓ 列表 - 自定义数据聚合页
+ * ❓ 详情 - 发送磁链至 aria2 下载
+ * ❓ 网盘 - 离线垃圾文件清理
+ * ❓ 网盘 - 手动档
  */
 
 (function () {
-	// match domain
+	// match
 	const MatchDomains = [
 		{ domain: "JavBus", regex: /(jav|bus|dmm|see|cdn|fan){2}\./g },
 		{ domain: "JavDB", regex: /javdb\d*\.com/g },
