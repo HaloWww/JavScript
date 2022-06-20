@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.3.7
+// @version         3.4.1
 // @author          blc
-// @description     一站式体验，JavBus 兼容
+// @description     一站式体验，JavBus & JavDB 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
 // @include         *
 // @require         https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js
@@ -13,6 +13,7 @@
 // @resource        info https://s1.ax1x.com/2022/04/01/q5lyz6.png
 // @resource        warn https://s1.ax1x.com/2022/04/01/q5lgsO.png
 // @resource        error https://s1.ax1x.com/2022/04/01/q5lcQK.png
+// @supportURL      https://t.me/+bAWrOoIqs3xmMjll
 // @connect         *
 // @run-at          document-start
 // @grant           GM_addValueChangeListener
@@ -30,13 +31,13 @@
 // @grant           GM_getValue
 // @grant           GM_info
 // @license         GPL-3.0-only
-// @compatible      chrome
-// @compatible      edge
+// @compatible      chrome ≥ 88 & Tampermonkey
+// @compatible      edge ≥ 88 & Tampermonkey
+// @compatible      firefox ≥ 89 & Tampermonkey
 // ==/UserScript==
 
 /**
  * TODO:
- * ⏳ 脚本 - 兼容 JavDB
  * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
  * ❓ 列表 - 自定义数据聚合页
  * ❓ 详情 - 发送磁链至 aria2 下载
@@ -194,7 +195,7 @@
 			silent: true,
 			timeout: 2000,
 			...msg,
-			text: msg?.text ?? GM_info.script.name,
+			text: msg?.text || GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
 			onclick: msg?.clickUrl ? () => openInTab(msg.clickUrl) : () => {},
 		});
@@ -1184,10 +1185,10 @@
             text-align: center;
         }
         .x-ml {
-            margin-left: 10px;
+            margin-left: 10px !important;
         }
         .x-mr {
-            margin-right: 10px;
+            margin-right: 10px !important;
         }
         .x-in {
             opacity: 1 !important;
@@ -2678,8 +2679,7 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB", "D"];
-		// excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB"];
+		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB"];
 
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
@@ -2961,6 +2961,7 @@
 		};
 		movie = {
 			params: {},
+			magnets: [],
 
 			docStart() {
 				const style = `
@@ -3114,21 +3115,22 @@
                     margin: 0 5px 10px 0;
                 }
                 #magnets-content {
-                    max-height: 500px;
+                    max-height: 400px;
                     overflow: auto;
                 }
                 #magnets-content > .columns {
                     margin: 0;
+                    padding: 5px 0;
                 }
                 #magnets-content > .columns > .column {
+                    display: flex;
+                    align-items: center;
                     margin: 0;
-                    padding: 10px;
+                    padding: 5px 10px;
                 }
-                .buttons.column button {
-                    margin: 0 !important;
-                }
-                .buttons.column button:nth-child(2) {
-                    margin-left: 5px !important;
+                #magnets-content .tag,
+                #magnets-content .button {
+                    margin: 0;
                 }
                 .review-items .review-item {
                     padding: 10px 0;
@@ -3164,6 +3166,9 @@
                 .x-from {
                     min-width: 70px;
                 }
+                .x-offline {
+                    width: 100%;
+                }
                 `;
 				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}`);
 			},
@@ -3186,6 +3191,8 @@
 
 				this._movieTitle();
 				this._movieMagnet();
+				this._driveMatch();
+				DOC.querySelector(".x-offline")?.addEventListener("click", e => this._driveOffline(e));
 			},
 			getParams() {
 				const infos = Array.from(DOC.querySelectorAll(".movie-panel-info > .panel-block") ?? []);
@@ -3312,6 +3319,29 @@
 				const transTitleNode = DOC.querySelector(".x-transTitle");
 				if (transTitleNode) transTitleNode.textContent = transTitle ?? "查询失败";
 			},
+			async _driveMatch() {
+				const start = () => {
+					if (DOC.querySelector(".x-res")) return;
+
+					GM_addStyle(`#magnets-content button.button.x-hide{ display: flex; }`);
+					DOC.querySelector(".movie-panel-info").insertAdjacentHTML(
+						"beforeend",
+						`<div class="panel-block"><strong>资源:</strong>&nbsp;<span class="value x-res">查询中...</span></div><div class="panel-block"><button class="button is-info is-small x-offline" data-magnet="all">一键离线</button></div>`
+					);
+				};
+
+				const res = await this.driveMatch(this.params, start);
+				const resNode = DOC.querySelector(".x-res");
+				if (!resNode) return;
+
+				resNode.innerHTML = !res?.length
+					? "暂无网盘资源"
+					: res.reduce(
+							(acc, { pc, t, n }) =>
+								`${acc}<div class="x-ellipsis"><a href="${this.pcUrl}${pc}" target="_blank" title="${t} / ${n}">${n}</a></div>`,
+							""
+					  );
+			},
 			async _movieMagnet() {
 				const start = () => {
 					const node = DOC.querySelector(".top-meta");
@@ -3345,38 +3375,35 @@
 				};
 				magnets = this.movieSort(magnets, start);
 				if (!magnets.length) return;
+				this.magnets = magnets;
 
 				magnets = magnets.map(
 					({ link, name, size, zh, date, from, href }, index) => `
                     <div class="item columns is-desktop${(index + 1) % 2 === 0 ? "" : " odd"}">
-                        <div class="magnet-name column is-four-fifths">
-                            <a href="${link}">
+                        <div class="magnet-name column is-four-fifths" title="${name}">
+                            <a href="${link}" class="x-ellipsis">
                                 <span class="name">${name}</span>
                             </a>
                         </div>
                         <div class="column">
-                            <div class="tags">
-                                <span class="tag is-warning is-small is-light ${zh ? "" : " x-out"}">字幕</span>
-                            </div>
+                            <span class="tag is-warning is-small is-light ${zh ? "" : " x-out"}">字幕</span>
                         </div>
                         <div class="date column">
-                            <span class="time">${size}</span>
+                            <span>${size}</span>
                         </div>
                         <div class="date column">
-                            <span class="time">${date}</span>
+                            <span>${date}</span>
                         </div>
                         <div class="column">
-                            <div class="tags">
-                                <a
-                                    class="tag is-danger is-small is-light x-from"
-                                    ${href ? `href="${href}" target="_blank" title="查看详情"` : ""}
-                                >
-                                    ${from}
-                                </a>
-                            </div>
+                            <a
+                                class="tag is-danger is-small is-light x-from"
+                                ${href ? `href="${href}" target="_blank" title="查看详情"` : ""}
+                            >
+                                ${from}
+                            </a>
                         </div>
                         <div class="buttons column">
-                            <button class="button is-info is-small" data-copy="${link}" title="复制磁力链接">复制链接</button><button class="button is-info is-small x-hide" data-magnet="${link}" title="仅添加离线任务">添加离线</button>
+                            <button class="button is-info is-small" data-copy="${link}" title="复制磁力链接">复制链接</button><button class="button is-info is-small x-ml x-hide" data-magnet="${link}" title="仅添加离线任务">添加离线</button>
                         </div>
                     </div>
                     `
@@ -3386,9 +3413,13 @@
 				node.innerHTML = magnets;
 
 				DOC.querySelector("#magnets-content").addEventListener("click", e => {
-					handleCopyTxt(e, "复制成功");
-					// !handleCopyTxt(e, "复制成功") && this._driveOffline(e);
+					!handleCopyTxt(e, "复制成功") && this._driveOffline(e);
 				});
+			},
+			async _driveOffline(e) {
+				await this.driveOffline(e, { ...this.params, magnets: this.magnets });
+				await delay(1);
+				this._driveMatch();
 			},
 		};
 		others = {
