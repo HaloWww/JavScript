@@ -193,7 +193,7 @@
 		GM_notification({
 			highlight: true,
 			silent: true,
-			timeout: 2000,
+			timeout: 3000,
 			...msg,
 			text: msg?.text || GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
