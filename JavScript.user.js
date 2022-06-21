@@ -278,8 +278,8 @@
 			});
 
 			const [bjRes, jsRes] = await Promise.all([
-				request(`http://webcache.googleusercontent.com/search?q=cache:${blogJav?.href}`),
-				request(javStore?.href),
+				request(`http://webcache.googleusercontent.com/search?q=cache:${blogJav?.href ?? ""}`),
+				request(javStore?.href ?? ""),
 			]);
 			const bjImg = bjRes
 				? bjRes
@@ -3354,7 +3354,7 @@
 				let magnets = (await this.movieMagnet(this.params, start)) ?? [];
 				const curMagnets = Array.from(DOC.querySelectorAll("#magnets-content .item") ?? []).map(item => {
 					const name = item.querySelector(".magnet-name");
-					const size = name.querySelector(".meta").textContent.split(",")[0].trim();
+					const size = name.querySelector(".meta")?.textContent.split(",")[0].trim() ?? "";
 					return {
 						bytes: transToBytes(size),
 						date: item.querySelector(".date .time").textContent,
