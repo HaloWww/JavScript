@@ -278,7 +278,9 @@
 			});
 
 			const [bjRes, jsRes] = await Promise.all([
-				request(`http://webcache.googleusercontent.com/search?q=cache:${blogJav?.href ?? ""}`),
+				request(
+					`${blogJav?.href ? `http://webcache.googleusercontent.com/search?q=cache:${blogJav.href}` : ""}`
+				),
 				request(javStore?.href ?? ""),
 			]);
 			const bjImg = bjRes
