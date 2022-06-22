@@ -3201,7 +3201,7 @@
 				const findInfos = label => {
 					return (
 						infos
-							.find(info => info.querySelector("strong").textContent === label)
+							.find(info => info.querySelector("strong")?.textContent === label)
 							?.querySelector(".value")
 							?.textContent?.trim() ?? ""
 					);
