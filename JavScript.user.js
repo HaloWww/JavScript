@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.4.3
+// @version         3.4.4
 // @author          blc
 // @description     一站式体验，JavBus & JavDB 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -38,7 +38,6 @@
 
 /**
  * TODO:
- * ⏳ 脚本 - icon, style, bootstrap 精简 & 调整统一
  * ❓ 列表 - 自定义数据聚合页
  * ❓ 详情 - 发送磁链至 aria2 下载
  * ❓ 网盘 - 离线垃圾文件清理
@@ -643,6 +642,7 @@
 				"M_PLAYER",
 				"M_TITLE",
 				"M_STAR",
+				"M_JUMP",
 				"M_SUB",
 				"M_SORT",
 				"M_MAGNET",
@@ -738,6 +738,13 @@
 					key: "M_STAR",
 					type: "switch",
 					info: `如无，获取自 <a href="https://javdb.com/" class="link-primary">JavDB</a>`,
+					defaultVal: true,
+				},
+				{
+					name: "站点跳转",
+					key: "M_JUMP",
+					type: "switch",
+					info: "在 JavBus & JavDB 间跳转",
 					defaultVal: true,
 				},
 				{
@@ -1488,6 +1495,11 @@
 				if (star?.length) Store.upDetail(code, { star });
 			}
 			return star;
+		};
+		// M_JUMP
+		movieJump = start => {
+			if (!this.M_JUMP) return;
+			start && start();
 		};
 		// M_SUB
 		movieSub = (magnets, start) => {
@@ -2320,6 +2332,7 @@
 
 				this._movieTitle();
 				addCopyTarget("span[style='color:#CC0000;']", { title: "复制番号" });
+				this._movieJump();
 				this._movieStar();
 
 				this._driveMatch();
@@ -2343,6 +2356,18 @@
 					studio: textContent.match(/(?<=製作商: ).+/g)?.pop(0),
 					star: !/暫無出演者資訊/g.test(textContent),
 				};
+			},
+			_movieJump() {
+				const { code } = this.params;
+				if (!code) return;
+
+				const start = () => {
+					DOC.querySelector("span[style='color:#CC0000;']")?.insertAdjacentHTML(
+						"beforeend",
+						`<a class="x-ml" href="https://javdb.com/search?q=${code}#jump" title="跳转 JavDB">跳转</a>`
+					);
+				};
+				this.movieJump(start);
 			},
 			initSwitch() {
 				const bigImage = DOC.querySelector(".bigImage");
@@ -2880,6 +2905,8 @@
 				this.globalDark(`${this.style}${this.customStyle}${this._style}${style}${this.listMovieTitle()}`);
 			},
 			contentLoaded() {
+				this.captureJump();
+
 				this._globalSearch();
 				this.globalClick([".movie-list .box", ".actors .box a", ".section-container .box"], "", url => {
 					url = url.replace(location.origin, "");
@@ -2896,6 +2923,27 @@
                 .movie-list, .actors, .section-container { display: grid; }
                 nav.pagination { display: flex; }
                 `);
+			},
+			captureJump() {
+				let { pathname, hash, search } = location;
+				if (pathname !== "/search" || hash !== "#jump") return;
+
+				let res = {};
+				search
+					.replace("?", "")
+					.split("&")
+					.forEach(item => {
+						const [key, val] = item.split("=");
+						res[key] = val;
+					});
+				res = res["q"];
+				if (!res) return;
+
+				const { regex } = codeParse(res);
+				const node = Array.from(DOC.querySelectorAll(".movie-list .item a") ?? []).find(item => {
+					return regex.test(item.querySelector(".video-title strong")?.textContent ?? "");
+				});
+				if (node?.href) location.replace(node.href);
 			},
 			modifyLayout(selectors) {
 				const container = DOC.querySelector(selectors);
@@ -3185,6 +3233,7 @@
 
 				addCopyTarget("h2.title", { title: "复制标题" });
 				addCopyTarget(".first-block .value", { title: "复制番号" });
+				this._movieJump();
 
 				this.initSwitch();
 				this.updateSwitch({ key: "img", title: "大图" });
@@ -3213,6 +3262,22 @@
 					date: findInfos("日期:"),
 					studio: findInfos("片商:"),
 				};
+			},
+			_movieJump() {
+				const { code } = this.params;
+				if (code.startsWith("FC2")) return;
+
+				const node = DOC.querySelector(".first-block .value");
+				const prefix = node.querySelector("a")?.textContent ?? "";
+				if (!prefix || prefix === "复制") return;
+
+				const start = () => {
+					node.insertAdjacentHTML(
+						"beforeend",
+						`<a class="x-ml" href="https://www.javbus.com/${code}" title="跳转 JavBus">跳转</a>`
+					);
+				};
+				this.movieJump(start);
 			},
 			initSwitch() {
 				const info = DOC.querySelector(".movie-panel-info");
