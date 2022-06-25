@@ -33,7 +33,6 @@
 // @license         GPL-3.0-only
 // @compatible      chrome ≥ 88 & Tampermonkey
 // @compatible      edge ≥ 88 & Tampermonkey
-// @compatible      firefox ≥ 89 & Tampermonkey
 // ==/UserScript==
 
 /**
