@@ -50,14 +50,14 @@
 		{ domain: "JavDB", regex: /javdb\d*\.com/g },
 		{ domain: "Drive115", regex: /captchaapi\.115\.com/g },
 	];
-	const Matched = MatchDomains.find(({ regex }) => regex.test(location.host));
-	if (!Matched?.domain) return;
+	const Domain = MatchDomains.find(({ regex }) => regex.test(location.host))?.domain;
+	if (!Domain) return;
 
 	// document
 	const DOC = document;
-	DOC.create = (tag, attr = {}, child) => {
+	DOC.create = (tag, attrs = {}, child) => {
 		const element = DOC.createElement(tag);
-		Object.keys(attr).forEach(name => element.setAttribute(name, attr[name]));
+		Object.keys(attrs).forEach(name => element.setAttribute(name, attrs[name]));
 		typeof child === "string" && element.appendChild(DOC.createTextNode(child));
 		typeof child === "object" && element.appendChild(child);
 		return element;
@@ -65,17 +65,14 @@
 
 	// request
 	const request = (url, data = {}, method = "GET", params = {}) => {
-		if (!url) return;
-
 		method = method ? method.toUpperCase().trim() : "GET";
-		if (!["GET", "POST"].includes(method)) return;
+		if (!url || !["GET", "POST"].includes(method)) return;
 
 		if (Object.prototype.toString.call(data) === "[object Object]") {
 			data = Object.keys(data).reduce((pre, cur) => {
 				return `${pre ? `${pre}&` : pre}${cur}=${encodeURIComponent(data[cur])}`;
 			}, "");
 		}
-
 		if (method === "GET") {
 			params.responseType = params.responseType ?? "document";
 			if (data) {
@@ -91,7 +88,6 @@
 			const headers = params.headers ?? {};
 			params.headers = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8", ...headers };
 		}
-
 		// const headers = params.headers ?? {};
 		// params.headers = { Referer: "", "Cache-Control": "no-cache", ...headers };
 
@@ -105,11 +101,9 @@
 					if (response?.errcode === 911) verify();
 					if (status === 404) response = false;
 					if (response && ["", "text"].includes(params.responseType)) {
-						const htmlRegex = /<\/?[a-z][\s\S]*>/i;
-						const jsonRegex = /^{.*}$/;
-						if (htmlRegex.test(response)) {
+						if (/<\/?[a-z][\s\S]*>/i.test(response)) {
 							response = new DOMParser().parseFromString(response, "text/html");
-						} else if (jsonRegex.test(response)) {
+						} else if (/^{.*}$/.test(response)) {
 							response = JSON.parse(response);
 						}
 					}
@@ -128,10 +122,10 @@
 		const D = `${date.getDate()}`.padStart(2, "0");
 		return `${Y}${separator}${M}${separator}${D}`;
 	};
-	const addCopyTarget = (selectors, attr = {}) => {
+	const addCopyTarget = (selectors, attrs = {}) => {
 		const node = DOC.querySelector(selectors);
-		const _attr = { "data-copy": node?.textContent?.trim() ?? "", class: "x-ml", href: "javascript:void(0);" };
-		const target = DOC.create("a", { ..._attr, ...attr }, "复制");
+		const _attrs = { "data-copy": node?.textContent ?? "", class: "x-ml", href: "javascript:void(0);" };
+		const target = DOC.create("a", { ..._attrs, ...attrs }, "复制");
 		target.addEventListener("click", handleCopyTxt);
 		node.appendChild(target);
 	};
@@ -855,7 +849,7 @@
 			}
 			if (!commands.length) return;
 
-			const { domain } = Matched;
+			// const { domain } = Matched;
 			const active = tabs.find(({ key }) => key === this.route) ?? tabs[0];
 
 			let tabStr = "";
@@ -900,7 +894,7 @@
 						info,
 					} = details.find(item => item.key === curCommands[curIdx]);
 
-					const uniKey = `${domain}_${curKey}`;
+					const uniKey = `${Domain}_${curKey}`;
 					const val = GM_getValue(uniKey, defaultVal);
 					this[curKey] = val;
 
@@ -1080,10 +1074,10 @@
 
 						if (action === "save") {
 							const data = Object.fromEntries(new FormData(body.querySelector("form")).entries());
-							commands.forEach(key => GM_setValue(`${domain}_${key}`, data[key] ?? ""));
+							commands.forEach(key => GM_setValue(`${Domain}_${key}`, data[key] ?? ""));
 						}
 						if (action === "reset") {
-							GM_listValues().forEach(name => name.startsWith(domain) && GM_deleteValue(name));
+							GM_listValues().forEach(name => name.startsWith(Domain) && GM_deleteValue(name));
 						}
 						if (action === "restart") {
 							GM_listValues().forEach(name => GM_deleteValue(name));
@@ -2656,7 +2650,7 @@
                         <td class="text-center">${date}</td>
                         <td class="text-center">
                             <a${href ? ` href="${href}" target="_blank" title="查看详情"` : ""}>
-                                <code>${from ?? Matched.domain}</code>
+                                <code>${from ?? Domain}</code>
                             </a>
                         </td>
                         <td class="text-center">
@@ -3424,7 +3418,7 @@
 					return {
 						bytes: transToBytes(size),
 						date: item.querySelector(".date .time").textContent,
-						from: "JavDB",
+						from: Domain,
 						link: name.querySelector("a").href.split("&")[0],
 						name: name.querySelector(".name").textContent,
 						size,
@@ -3521,8 +3515,12 @@
 		}
 	}
 
-	const Process = eval(`new ${Matched.domain}()`);
-	Process.docStart && Process.docStart();
-	Process.contentLoaded && DOC.addEventListener("DOMContentLoaded", () => Process.contentLoaded());
-	Process.load && window.addEventListener("load", () => Process.load());
+	try {
+		const Process = eval(`new ${Domain}()`);
+		Process.docStart && Process.docStart();
+		Process.contentLoaded && DOC.addEventListener("DOMContentLoaded", () => Process.contentLoaded());
+		Process.load && window.addEventListener("load", () => Process.load());
+	} catch (err) {
+		console.error(`${GM_info.script.name}: 无匹配模块`);
+	}
 })();
