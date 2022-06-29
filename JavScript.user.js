@@ -178,8 +178,8 @@
 		});
 		return Array.from(new Set(arr.map(e => e[key]))).map(e => arr.find(x => x[key] === e));
 	};
-	const openInTab = (url, active = true, options = {}) => {
-		GM_openInTab(url, { active: !!active, insert: true, setParent: true, incognito: false, ...options });
+	const openInTab = (url, active = true, params = {}) => {
+		GM_openInTab(url, { active: !!active, insert: true, setParent: true, incognito: false, ...params });
 	};
 	const notify = msg => {
 		GM_notification({
