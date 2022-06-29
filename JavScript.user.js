@@ -737,7 +737,7 @@
 					name: "站点跳转",
 					key: "M_JUMP",
 					type: "switch",
-					info: "在 JavBus & JavDB 间跳转",
+					info: `在 <a href="https://www.javbus.com/" class="link-primary">JavBus</a> & <a href="https://javdb.com/" class="link-primary">JavDB</a> 间跳转`,
 					defaultVal: true,
 				},
 				{
