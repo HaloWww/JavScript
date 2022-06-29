@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.4.4
+// @version         3.4.5
 // @author          blc
 // @description     一站式体验，JavBus & JavDB 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -656,7 +656,7 @@
 					key: "G_DARK",
 					type: "switch",
 					info: "常用页面暗黑模式",
-					defaultVal: true,
+					defaultVal: window.matchMedia("(prefers-color-scheme: dark)").matches,
 					hotkey: "d",
 				},
 				{
