@@ -1643,6 +1643,7 @@
 			classList.add("active");
 			const originText = target.textContent;
 			target.textContent = "请求中...";
+			target.setAttribute("disabled", "disabled");
 
 			const wp_path_id = await this.driveCid();
 
@@ -1703,6 +1704,7 @@
 
 			classList.remove("active");
 			target.textContent = originText;
+			target.removeAttribute("disabled");
 		};
 	}
 
