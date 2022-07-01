@@ -1235,7 +1235,6 @@
             position: relative;
             display: block;
             overflow: hidden;
-            cursor: pointer;
         }
         .x-player::after {
             position: absolute;
