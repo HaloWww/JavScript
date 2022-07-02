@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.4.5
+// @version         3.4.6
 // @author          blc
 // @description     一站式体验，JavBus & JavDB 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -37,8 +37,6 @@
 
 /**
  * TODO:
- * ⏳ 列表 - 资源匹配时 loading 状态
- * ⏳ 列表 - img lazyload
  * ⏳ 网盘 - 资源重命名 逻辑优化
  * ⏳ 网盘 - 离线垃圾文件清理
  * ❓ 网盘 - 手动档
@@ -217,6 +215,13 @@
 			prefix: codes[0],
 			regex: new RegExp(codes.join("(0|-|_){0,4}"), "i"),
 		};
+	};
+	const fadeInImg = nodeList => {
+		const loaded = node => node.classList.add("x-in");
+		nodeList.forEach(node => {
+			const img = node.querySelector("img");
+			if (img) img.onload = () => loaded(img);
+		});
 	};
 
 	// store
@@ -1869,6 +1874,9 @@
                 #waterfall .item {
                     float: unset !important;
                 }
+                #waterfall img {
+                    opacity: 0;
+                }
                 .search-header {
 				    padding: 0 !important;
 				    background: none !important;
@@ -1983,6 +1991,7 @@
 					this.modifyAvatarBox(item);
 					this.modifyMovieBox(item);
 				}
+				fadeInImg(items);
 				this._driveMatch(container);
 				return items;
 			},
@@ -2000,7 +2009,6 @@
 						replace: val => val.replace("ps.jpg", "pl.jpg"),
 					},
 				];
-
 				this.listMovieImgType(item, condition);
 			},
 			modifyAvatarBox(node = DOC) {
@@ -2819,6 +2827,12 @@
                     margin: 0 !important;
                     padding: 0 0 20px;
                 }
+                .movie-list img,
+                .actors img,
+                .section-container img {
+                    opacity: 0;
+                    transition: opacity 0.25s linear !important;
+                }
                 .movie-list .box {
                     padding: 0 0 10px;
                 }
@@ -2917,6 +2931,7 @@
 
 				GM_addStyle(`
                 .movie-list, .actors, .section-container { display: grid; }
+                .movie-list img, .actors img, .section-container img { opacity: 1; }
                 nav.pagination { display: flex; }
                 `);
 			},
@@ -2950,8 +2965,8 @@
 				container.parentElement.replaceChild(_container, container);
 				_container.style.cssText += "display:grid";
 
-				const infScroll = this.listScroll(_container, "", ".pagination-next");
 				const setSection = () => GM_addStyle(`section.section { padding-bottom: 0; }`);
+				const infScroll = this.listScroll(_container, "", ".pagination-next");
 				if (!infScroll) {
 					const pagination = DOC.querySelector("nav.pagination");
 					if (pagination) {
@@ -2978,6 +2993,7 @@
 						items.push(_item);
 					}
 				});
+				fadeInImg(items);
 				this._driveMatch(container);
 				return items;
 			},
