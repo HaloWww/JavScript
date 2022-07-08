@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            JavScript
 // @namespace       JavScript@blc
-// @version         3.4.6
+// @version         3.4.7
 // @author          blc
 // @description     一站式体验，JavBus & JavDB 兼容
 // @icon            https://s1.ax1x.com/2022/04/01/q5lzYn.png
@@ -37,11 +37,9 @@
 
 /**
  * TODO:
- * ⏳ 网盘 - 一键离线 离线结果弹窗逻辑调整
- * ⏳ 网盘 - 资源重命名 逻辑优化
- * ❓ 网盘 - 离线垃圾文件清理
+ * ⏳ 网盘 - 离线垃圾文件清理
+ * ⏳ 列表 - 自定义数据聚合页
  * ❓ 网盘 - 一键离线 自动/手动
- * ❓ 列表 - 自定义数据聚合页
  */
 
 (function () {
@@ -186,7 +184,7 @@
 		GM_notification({
 			highlight: true,
 			silent: true,
-			timeout: 3000,
+			timeout: 5000,
 			...msg,
 			text: msg?.text || GM_info.script.name,
 			image: GM_getResourceURL(msg?.image ?? "info"),
@@ -583,12 +581,10 @@
 			return res?.data ?? [];
 		}
 		static async getSign() {
-			const { state, sign, time } = await request(
-				"http://115.com/",
-				{ ct: "offline", ac: "space", _: new Date().getTime() },
-				"GET",
-				{ responseType: "json" }
-			);
+			const { state, sign, time } =
+				(await request("http://115.com/", { ct: "offline", ac: "space", _: new Date().getTime() }, "GET", {
+					responseType: "json",
+				})) ?? {};
 
 			if (state) return { sign, time };
 
@@ -597,7 +593,6 @@
 				text: "点击跳转登录",
 				image: "error",
 				clickUrl: "http://115.com/?mode=login",
-				timeout: 3000,
 			});
 		}
 		static async addTaskUrl({ url, wp_path_id = "", sign, time }) {
@@ -1577,7 +1572,7 @@
 		};
 		// D_CID
 		driveCid = async () => {
-			let cid = this.D_CID;
+			let cid = this.D_CID?.trim() === "" ? "${云下载}" : this.D_CID;
 			if (/^\$\{.+\}$/.test(cid)) {
 				cid = cid.replace(/\$|\{|\}/g, "").trim();
 				const res = await Apis.getFile();
@@ -1621,19 +1616,22 @@
 
 			if (!codeParse(code).regex.test(file_name)) file_name = `${code} - ${file_name}`;
 
+			res = res.filter(item => item.ico);
 			const numRegex = /\$\{序号\}/g;
-			res = res
-				.filter(item => item.ico)
-				.map((item, index) => {
-					item.file_name = `${file_name.replace(numRegex, index + 1)}.${item.ico}`;
-					return item;
+			const data = [];
+
+			unique(res.map(item => `${item.cid}/${item.ico}`)).forEach(key => {
+				const [_cid, _ico] = key.split("/");
+				res.filter(item => item.cid === _cid && item.ico === _ico).forEach((item, index) => {
+					data.push({ ...item, file_name: `${file_name.replace(numRegex, index + 1)}.${_ico}` });
 				});
+			});
 
-			unique(res.map(item => item.cid).filter(item => item !== cid)).forEach(fid =>
-				res.push({ fid, file_name: file_name.replace(numRegex, "") })
-			);
+			unique(res.map(item => item.cid).filter(item => item !== cid)).forEach(fid => {
+				data.push({ fid, file_name: file_name.replace(numRegex, "") });
+			});
 
-			return Apis.driveRename(res);
+			return Apis.driveRename(data);
 		};
 		// OFFLINE
 		driveOffline = async (e, { magnets, code, title }) => {
@@ -1652,11 +1650,12 @@
 			target.textContent = "请求中...";
 			target.setAttribute("disabled", "disabled");
 
-			const wp_path_id = await this.driveCid();
+			let wp_path_id = await this.driveCid();
+			if (!/^\d+$/.test(wp_path_id)) wp_path_id = "";
 
 			if (type === "all") {
-				const warnMsg = { title: "一键离线任务失败", image: "warn" };
-				const successMsg = { title: "一键离线任务成功", image: "success", timeout: 3000 };
+				const warnMsg = { title: `${code} 一键离线任务失败`, image: "warn" };
+				const successMsg = { title: `${code} 一键离线任务成功`, image: "success" };
 
 				const magnetLen = magnets.length;
 
@@ -1669,8 +1668,13 @@
 
 					let res = await Apis.addTaskUrl({ url, wp_path_id, ...sign });
 					if (!res?.state) {
-						if (res.errcode === 911) {
-							notify({ title: "一键离线任务中断", text: res.error_msg, image: "warn", highlight: false });
+						if (res?.errcode === 911) {
+							notify({
+								title: `${code} 一键离线任务中断`,
+								text: res.error_msg,
+								image: "warn",
+								highlight: false,
+							});
 							break;
 						}
 						if (!isLast) continue;
@@ -1697,13 +1701,12 @@
 					break;
 				}
 			} else if (type) {
-				const url = type;
-				const res = await Apis.addTaskUrl({ url, wp_path_id });
+				const res = await Apis.addTaskUrl({ url: type, wp_path_id });
 				if (res) {
 					notify({
-						title: `离线任务添加${res.state ? "成功" : "失败"}`,
+						title: `${code} 离线任务添加${res.state ? "成功" : "失败"}`,
 						text: res.error_msg ?? "",
-						image: res.state ? "info" : "warn",
+						image: res.state ? "success" : "warn",
 						highlight: false,
 					});
 				}
