@@ -1981,10 +1981,9 @@
 					if (node) this.updateMatchStatus(node);
 				});
 
-				const { pathname, search } = location;
-				if (pathname === "/" && search.startsWith("?merge=")) {
-					const list = this.getMerge(search.split("=").pop());
-					return this.fetchMerge(list);
+				const { search } = location;
+				if (location.pathname === "/" && search.startsWith("?merge=")) {
+					return this.fetchMerge(this.getMerge(search.split("=").pop()));
 				}
 
 				const nav = DOC.querySelector(".search-header .nav");
