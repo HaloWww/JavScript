@@ -37,8 +37,8 @@
 
 /**
  * TODO:
- * ⏳ 网盘 - 离线垃圾文件清理
  * ⏳ 列表 - 自定义列表聚合页
+ * ⏳ 网盘 - 离线垃圾文件清理
  * ❓ 网盘 - 一键离线 自动/手动
  */
 
@@ -633,6 +633,7 @@
 				"L_MTH",
 				"L_MTL",
 				"L_SCROLL",
+				"L_MERGE",
 				"M_IMG",
 				"M_VIDEO",
 				"M_PLAYER",
@@ -700,6 +701,14 @@
 					type: "switch",
 					info: "滚动加载下一页",
 					defaultVal: true,
+				},
+				{
+					name: "合并列表",
+					key: "L_MERGE",
+					type: "textarea",
+					info: "页名不可重复，同页重复地址自动过滤<br>每页按 <code>影片日期</code> > <code>填写顺序</code> 综合排序，并自动去重",
+					placeholder: "[聚合页1]\n/\n/uncensored\n\n[聚合页2]\n/star/okq\n/star/tyv",
+					defaultVal: "",
 				},
 				{
 					name: "预览大图",
@@ -852,7 +861,6 @@
 			}
 			if (!commands.length) return;
 
-			// const { domain } = Matched;
 			const active = tabs.find(({ key }) => key === this.route) ?? tabs[0];
 
 			let tabStr = "";
@@ -927,18 +935,30 @@
 					            <label class="form-check-label" for="${curKey}">${name}</label>
 					        </div>
 					        `;
+					} else if (type === "textarea") {
+						panelStr += `
+					        <label class="form-label" for="${curKey}">${name}</label>
+					        <textarea
+                                rows="3"
+					            class="form-control"
+					            id="${curKey}"
+					            aria-describedby="${curKey}_Help"
+					            placeholder="${placeholder}"
+					            name="${curKey}"
+					        >${val ?? ""}</textarea>
+					        `;
 					} else {
 						panelStr += `
 					        <label class="form-label" for="${curKey}">${name}</label>
 					        <input
-				                type="${type}"
-				                class="form-control"
-				                id="${curKey}"
-				                aria-describedby="${curKey}_Help"
-				                value="${val ?? ""}"
-				                placeholder="${placeholder}"
-				                name="${curKey}"
-				            >
+					            type="${type}"
+					            class="form-control"
+					            id="${curKey}"
+					            aria-describedby="${curKey}_Help"
+					            value="${val ?? ""}"
+					            placeholder="${placeholder}"
+					            name="${curKey}"
+					        >
 					        `;
 					}
 
@@ -1392,6 +1412,7 @@
 				container.classList.add("x-in");
 			}
 
+			if (!path) return msnry;
 			if (!this.L_SCROLL) return;
 
 			let nextURL;
@@ -1429,6 +1450,19 @@
 			});
 
 			return infScroll;
+		};
+		// L_MERGE
+		listMerge = key => {
+			if (!key || !this.L_MERGE) return;
+
+			let list = [];
+			for (const item of this.L_MERGE.split("\n\n")) {
+				const [_key, ...urls] = item.split("\n");
+				if (_key !== `[${key}]`) continue;
+				list = urls;
+				break;
+			}
+			return unique(list.map(item => item?.trim()).filter(Boolean));
 		};
 
 		// M_IMG
@@ -1941,16 +1975,91 @@
 				);
 			},
 			contentLoaded() {
-				const nav = DOC.querySelector(".search-header .nav");
-				if (nav) nav.classList.replace("nav-tabs", "nav-pills");
-
 				this._globalSearch();
 				this._globalClick(url => {
 					const node = DOC.querySelector(`a.movie-box[href="${url}"]`);
 					if (node) this.updateMatchStatus(node);
 				});
 
+				const { pathname, search } = location;
+				if (pathname === "/" && search.startsWith("?merge=")) {
+					const list = this.listMerge(search.split("=").pop());
+					return this._listMerge(list);
+				}
+
+				const nav = DOC.querySelector(".search-header .nav");
+				if (nav) nav.classList.replace("nav-tabs", "nav-pills");
+
 				this.modifyLayout();
+			},
+			async _listMerge(list) {
+				const parseDate = node => node.querySelector("date:last-child").textContent.replaceAll("-", "").trim();
+
+				const mergeItem = nodeList => {
+					let items = [];
+					nodeList.forEach(dom =>
+						items.push(
+							...Array.from(this.modifyItem(dom) ?? []).filter(item => item.querySelector(".movie-box"))
+						)
+					);
+
+					items = items.reduce((total, item) => {
+						const [code, date] = item.querySelectorAll("date");
+
+						const index = total.findIndex(t => {
+							const [_code, _date] = t.querySelectorAll("date");
+							return code.textContent === _code.textContent && date.textContent === _date.textContent;
+						});
+						if (index === -1) total.push(item);
+
+						return total;
+					}, []);
+
+					items.sort((first, second) => parseDate(second) - parseDate(first));
+					return items;
+				};
+
+				const _waterfall = DOC.create("div", { id: "waterfall", class: "x-show" });
+				list = await Promise.all(list.map(item => request(`${location.origin}${item}`)));
+				const items = mergeItem(list);
+				if (items.length) items.forEach(item => _waterfall.appendChild(item));
+
+				const waterfall = DOC.querySelector("#waterfall");
+				waterfall.parentElement.replaceChild(_waterfall, waterfall);
+				const status = DOC.create("div", { id: "x-status" }, items.length ? "加载中..." : "没有更多了");
+				_waterfall.insertAdjacentElement("afterend", status);
+
+				if (!items.length) return;
+				const msnry = this.listScroll(_waterfall, ".item");
+
+				let isLoading = false;
+				const noMore = () => {
+					window.onscroll = null;
+					status.textContent = "没有更多了";
+				};
+				window.onscroll = async () => {
+					if (isLoading) return;
+
+					const scrollHeight = Math.max(DOC.documentElement.scrollHeight, DOC.body.scrollHeight);
+					const scrollTop = window.pageYOffset || DOC.documentElement.scrollTop || DOC.body.scrollTop;
+					const clientHeight =
+						window.innerHeight || Math.min(DOC.documentElement.clientHeight, DOC.body.clientHeight);
+					if (clientHeight + scrollTop + 40 < scrollHeight) return;
+
+					isLoading = true;
+
+					list = list.map(dom => dom.querySelector("#next")?.href ?? "").filter(Boolean);
+					if (!list.length) return noMore();
+
+					list = await Promise.all(list.map(item => request(item)));
+					const _items = mergeItem(list);
+					if (!_items.length) return noMore();
+
+					_items.forEach(item => _waterfall.appendChild(item));
+					msnry.appended(_items);
+
+					isLoading = false;
+				};
 			},
 			modifyLayout() {
 				const waterfall = DOC.querySelector("#waterfall");
@@ -2714,7 +2823,7 @@
 			return super.init();
 		}
 
-		excludeMenu = ["G_DARK", "L_MIT", "M_STAR", "M_SUB"];
+		excludeMenu = ["G_DARK", "L_MIT", "L_MERGE", "M_STAR", "M_SUB"];
 
 		routes = {
 			list: /^\/$|^\/(guess|censored|uncensored|western|fc2|anime|search|video_codes|tags|rankings|actors|series|makers|directors|publishers)/i,
@@ -2793,7 +2902,7 @@
                         grid-template-columns: repeat(4, minmax(0, 1fr));
                     }
                     .movie-list.h {
-                        grid-template-columns: repeat(3, minmax(0, 1fr));
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
                     }
                 }
                 @media (min-width: 992px) {
@@ -2811,7 +2920,7 @@
                         grid-template-columns: repeat(6, minmax(0, 1fr));
                     }
                     .movie-list.h {
-                        grid-template-columns: repeat(4, minmax(0, 1fr));
+                        grid-template-columns: repeat(3, minmax(0, 1fr));
                     }
                 }
                 @media (min-width: 1400px) {
@@ -2820,7 +2929,7 @@
                         grid-template-columns: repeat(7, minmax(0, 1fr));
                     }
                     .movie-list.h {
-                        grid-template-columns: repeat(5, minmax(0, 1fr));
+                        grid-template-columns: repeat(4, minmax(0, 1fr));
                     }
                 }
                 .movie-list,

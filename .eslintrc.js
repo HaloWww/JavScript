@@ -27,5 +27,6 @@ module.exports = {
 		"no-constructor-return": "warn",
 		"no-eval": "warn",
 		"no-promise-executor-return": "warn",
+		complexity: "warn",
 	},
 };
