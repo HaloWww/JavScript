@@ -1452,7 +1452,7 @@
 			return infScroll;
 		};
 		// L_MERGE
-		listMerge = key => {
+		getMerge = key => {
 			if (!key || !this.L_MERGE) return;
 
 			let list = [];
@@ -1983,8 +1983,8 @@
 
 				const { pathname, search } = location;
 				if (pathname === "/" && search.startsWith("?merge=")) {
-					const list = this.listMerge(search.split("=").pop());
-					return this._listMerge(list);
+					const list = this.getMerge(search.split("=").pop());
+					return this.fetchMerge(list);
 				}
 
 				const nav = DOC.querySelector(".search-header .nav");
@@ -1992,7 +1992,9 @@
 
 				this.modifyLayout();
 			},
-			async _listMerge(list) {
+			async fetchMerge(list) {
+				if (!list?.length) location.replace(location.origin);
+
 				const parseDate = node => node.querySelector("date:last-child").textContent.replaceAll("-", "").trim();
 
 				const mergeItem = nodeList => {
